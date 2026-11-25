@@ -62,7 +62,7 @@ create table if not exists vouchers (
   title       text not null,
   description text,
   cost_points integer not null default 0,       -- điểm cần để đổi
-  color       text default '#2F8F5B',
+  color       text default '#C2432A',
   valid_days  integer not null default 30,
   active      boolean not null default true
 );

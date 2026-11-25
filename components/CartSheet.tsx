@@ -151,7 +151,7 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
                     <li key={v.id}>
                       <button disabled={!ok} onClick={() => { setVoucherId(on ? null : v.id); setPicking(false); }}
                         className={`flex w-full items-center gap-3 rounded-xl border-2 bg-paper p-3 text-left transition ${on ? "border-caramel" : "border-transparent"} ${ok ? "" : "opacity-55"}`}>
-                        <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: v.color || "#27804F" }} />
+                        <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: v.color || "#C2432A" }} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-bean-dark">{v.title}</span>
                           <span className="block text-xs text-muted">{ok ? `Giảm ${vnd(v.discount)} · HSD ${dateShort(v.expires_at)}` : v.reason}</span>

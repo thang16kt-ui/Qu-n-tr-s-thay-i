@@ -18,10 +18,10 @@ function pill(o: Order) {
 
 function ActiveCard({ o }: { o: Order }) {
   return (
-    <Link href={`/orders/?id=${o.id}`} className="relative block overflow-hidden rounded-3xl bg-gradient-to-br from-[#34a06a] to-caramel p-5 text-white shadow-[0_22px_44px_-24px_rgba(24,90,52,0.75)]">
+    <Link href={`/orders/?id=${o.id}`} className="relative block overflow-hidden rounded-3xl bg-gradient-to-br from-[#e0623f] to-caramel p-5 text-white shadow-[0_22px_44px_-24px_rgba(150,40,20,0.65)]">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-[#dff3e5]">Đơn đang xử lý</div>
+          <div className="text-xs uppercase tracking-[0.18em] text-[#ffe3d6]">Đơn đang xử lý</div>
           <div className="mt-1 text-5xl font-bold leading-none tracking-tight">#{o.code}</div>
         </div>
         <span className="rounded-full bg-mustard px-3 py-1 text-xs font-bold text-mustard-ink">{STATUS_LABEL[viewStatus(o)]}</span>

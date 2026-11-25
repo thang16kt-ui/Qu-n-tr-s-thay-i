@@ -22,11 +22,11 @@ export default function MemberCard() {
   const nt = nextTier(earned);
 
   return (
-    <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#34a06a] to-caramel p-5 text-white shadow-[0_22px_44px_-22px_rgba(24,90,52,0.7)]">
+    <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#e0623f] to-caramel p-5 text-white shadow-[0_22px_44px_-22px_rgba(150,40,20,0.6)]">
       {/* vân gỗ */}
       <svg className="pointer-events-none absolute -right-16 -top-20 opacity-[0.18]" width="260" height="260" viewBox="0 0 260 260" aria-hidden>
         {[28, 52, 76, 100, 124].map((r, i) => (
-          <ellipse key={r} cx={140 - i * 3} cy={130 + i * 2} rx={r} ry={r * 0.78} fill="none" stroke="#DFF3E5" strokeWidth="2.5" />
+          <ellipse key={r} cx={140 - i * 3} cy={130 + i * 2} rx={r} ry={r * 0.78} fill="none" stroke="#FFE3D6" strokeWidth="2.5" />
         ))}
       </svg>
 
@@ -34,7 +34,7 @@ export default function MemberCard() {
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: `linear-gradient(135deg, ${tier.from}, ${tier.to})`, boxShadow: "0 0 0 2px rgba(255,255,255,0.35)" }} />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#dff3e5]">Hạng {tier.name}</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#ffe3d6]">Hạng {tier.name}</span>
           </div>
           <div className="mt-2 text-lg font-bold">{member?.name || "Bạn của Mộc"}</div>
           <div className="text-sm text-white/75">{phone && prettyPhone(phone)}</div>

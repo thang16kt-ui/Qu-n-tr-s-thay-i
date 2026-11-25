@@ -7,7 +7,7 @@ CUP = "M66 62 L174 62 L160 212 Q159 220 151 220 L89 220 Q81 220 80 212 Z"
 
 def wrap(bg, body):
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
-<rect width="240" height="240" fill="#E8F1E2"/>
+<rect width="240" height="240" fill="#F8E9DF"/>
 <circle cx="120" cy="132" r="96" fill="#FDFEFB" opacity="0.7"/>
 <ellipse cx="120" cy="222" rx="62" ry="8" fill="#000" opacity="0.08"/>
 {body}

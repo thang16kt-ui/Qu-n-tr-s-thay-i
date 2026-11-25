@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  /* Bảng màu "Xanh trà tươi": nền kem xanh, xanh trà làm màu chính, vàng mù tạt làm điểm nhấn */
-  --color-cream: #f4f8ef;      /* nền */
-  --color-cream-2: #e4eedc;    /* nền phụ */
-  --color-paper: #fdfefb;      /* bề mặt thẻ */
-  --color-bean: #1f3a2b;       /* xanh rêu đậm — nút chính */
-  --color-bean-dark: #182a20;  /* chữ đậm */
-  --color-caramel: #27804f;    /* xanh trà — màu chính, nhãn, tiến độ */
-  --color-accent-soft: #e2f1e6;
-  --color-mustard: #f0b44a;    /* vàng mù tạt — nút Thêm, điểm nhấn */
+  /* Bảng màu "Đỏ gạch tươi": nền kem ấm, đỏ gạch làm màu chính, vàng mù tạt làm điểm nhấn */
+  --color-cream: #fff7ee;      /* nền */
+  --color-cream-2: #f7e6d8;    /* nền phụ */
+  --color-paper: #fffdfa;      /* bề mặt thẻ */
+  --color-bean: #3a1f15;       /* nâu đậm — nút chính */
+  --color-bean-dark: #2a160e;  /* chữ đậm */
+  --color-caramel: #c2432a;    /* đỏ gạch — màu chính, nhãn, tiến độ */
+  --color-accent-soft: #fbe3da;
+  --color-mustard: #f2b544;    /* vàng mù tạt — nút Thêm, điểm nhấn */
   --color-mustard-ink: #3a2a0c;
-  --color-latte: #8fb39a;
+  --color-latte: #e3a58f;
   --color-leaf: #7d8a5c;
-  --color-ink: #182a20;
-  --color-muted: #5e6e63;
-  --color-line: #dce7d4;
-  --color-done: #23784a;       /* màn "Đơn đã xong" */
-  --color-danger: #c0533a;
-  --color-danger-soft: #fbe8e1;
+  --color-ink: #2a160e;
+  --color-muted: #77645a;
+  --color-line: #f0ddcf;
+  --color-done: #2e7d4f;       /* màn "Đơn đã xong" (xanh) */
+  --color-danger: #6e5f57;     /* hết hạn / huỷ: nâu xám, để khác màu đỏ chính */
+  --color-danger-soft: #efe7e1;
   --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius-4xl: 2rem;
 }
@@ -39,19 +39,19 @@ html, body {
 .card {
   background: var(--color-paper);
   border-radius: 1.5rem;
-  box-shadow: 0 1px 2px rgba(24, 42, 32, 0.04), 0 10px 28px -16px rgba(24, 42, 32, 0.18);
-  border: 1px solid rgba(220, 231, 212, 0.8);
+  box-shadow: 0 1px 2px rgba(42, 22, 14, 0.04), 0 10px 28px -16px rgba(42, 22, 14, 0.18);
+  border: 1px solid rgba(240, 221, 207, 0.8);
 }
 
 .btn-primary {
   background: var(--color-bean);
-  color: #fdfefb;
+  color: #fffdfa;
   border-radius: 9999px;
   font-weight: 600;
   transition: transform 0.1s ease, background 0.2s ease;
 }
 .btn-primary:active { transform: scale(0.97); }
-.btn-primary:disabled { background: #bccbbd; }
+.btn-primary:disabled { background: #d9c3b6; }
 
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
