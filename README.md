@@ -10,11 +10,13 @@ Giao diện: **Next.js 16** xuất ra trang tĩnh. Toàn bộ dữ liệu và lo
 - **Cá nhân**: đổi tên, lịch sử điểm, lịch sử đơn, bật thông báo, hướng dẫn thêm vào màn hình chính, đăng xuất.
 - **Trang nhân viên** `/staff` (có PIN): quét QR bằng camera, xác nhận đơn (tự cộng điểm) → đang pha → đã xong (tự gửi thông báo), tích điểm cho hoá đơn tại quầy, bật/tắt món hết hàng.
 
+**Bản đang chạy:** https://moc-coffee.onrender.com · trang nhân viên: https://moc-coffee.onrender.com/staff/
+
 ## Kiến trúc
 
 ```
 Điện thoại khách / nhân viên
-   │  trang tĩnh (GitHub Pages)
+   │  trang tĩnh (Render: https://moc-coffee.onrender.com)
    ▼
 Supabase
  ├─ Bảng: members, menu_items, orders, point_log, vouchers, member_vouchers   (chỉ cho ĐỌC)
@@ -37,8 +39,8 @@ Supabase
 2. **Edge Functions → Deploy a new function → Via Editor**, tên `send-push`, dán nội dung `supabase/functions/send-push/index.ts`
    (sửa `APP_VAPID_PUBLIC_KEY` thành Public Key của bạn), **tắt “Verify JWT”**.
 3. Sửa `.env.production`: URL project, publishable key, VAPID public key.
-4. Đẩy code lên GitHub → **Settings → Pages → Source: GitHub Actions**. Workflow `.github/workflows/deploy.yml` sẽ tự build và đưa lên
-   `https://<tài-khoản>.github.io/<tên-repo>/`.
+4. Đẩy code lên GitHub → Render **New → Static Site**, chọn repo: Build `npm ci && npm run build`, Publish `out`,
+   biến môi trường `NODE_VERSION=22`. Mỗi lần đẩy code lên nhánh `main`, Render tự build lại.
 
 Chạy thử trên máy: `npm install && npm run dev` → http://localhost:3000
 
