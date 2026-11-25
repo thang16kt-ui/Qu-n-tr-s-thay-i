@@ -174,9 +174,6 @@ function BoardTab({ api }: { api: StaffApi }) {
   const cols: ["confirmed" | "making" | "done", string][] = [["confirmed", "Hàng chờ · ai quét trước làm trước"], ["making", "Đang pha"], ["done", "Đã xong (gần đây)"]];
   return (
     <div className="space-y-6">
-      <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-bean-dark">
-        Đơn đặt trên app chỉ hiện ở đây sau khi khách đến quầy và bạn quét mã. Số thứ tự cấp theo giờ quét.
-      </p>
       {cols.map(([k, label]) => (
         <section key={k}>
           <h3 className="mb-2 font-bold text-bean-dark">{label} <span className="text-muted">({groups[k].length})</span></h3>

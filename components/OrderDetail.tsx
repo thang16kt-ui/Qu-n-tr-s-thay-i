@@ -147,7 +147,6 @@ export default function OrderDetail({ order }: { order: Order }) {
   }
 
   const qrValue = phone ? buildQR(phone, order.ref ?? order.code) : "";
-  const minsLeft = Math.max(0, Math.ceil(ORDER_EXPIRE_MIN - (now - new Date(order.created_at).getTime()) / 60_000));
 
   return (
     <div className="px-5 pt-safe">
@@ -171,10 +170,6 @@ export default function OrderDetail({ order }: { order: Order }) {
             Mang mã này đến quầy để nhân viên quét và nhận đơn.
           </p>
           <div className="card mt-3 p-4"><Stepper status={vs} /></div>
-          <div className="mt-3 rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-bean-dark">
-            Đơn chỉ vào hàng chờ khi bạn đến quầy — <b>ai đến trước làm trước</b>. Số thứ tự được cấp lúc quét mã.
-            <span className="mt-1 block text-xs text-muted">Mã còn hiệu lực {minsLeft} phút.</span>
-          </div>
         </>
       )}
 
