@@ -25,12 +25,12 @@ on conflict (id) do update set
   options = excluded.options, sort = excluded.sort;
 
 insert into vouchers (id, title, description, cost_points, color, valid_days, kind, value, item_ids) values
-  ('welcome-10', 'Giảm 10% đơn đầu tiên', 'Quà chào mừng thành viên mới. Áp dụng mọi món.', 0, '#C47A4A', 14, 'percent', 10, '{}'),
-  ('upsize-free', 'Miễn phí nâng size', 'Nâng size M lên L cho 1 ly bất kỳ.', 20, '#A0673F', 30, 'upsize', 4000, '{}'),
-  ('topping-free', 'Tặng 1 topping', 'Chọn 1 topping bất kỳ, miễn phí.', 25, '#8A5A3B', 30, 'topping', 0, '{}'),
-  ('banh-20k', 'Giảm 20.000đ món bánh', 'Áp dụng cho Croissant, Bánh chuối, Tiramisu.', 40, '#6E4A33', 30, 'item_amount', 20000, '{croissant-bo,banh-chuoi-nuong,tiramisu}'),
-  ('ly-free', 'Tặng 1 ly Cà phê sữa đá', 'Size S, giảm đúng giá 1 ly khi có trong giỏ.', 60, '#4A3226', 30, 'free_item', 0, '{ca-phe-sua-da}'),
-  ('combo-2', 'Mua 1 tặng 1 Trà trái cây', 'Áp dụng Trà đào, Trà vải. Thứ 2–Thứ 5.', 90, '#B8875C', 21, 'bogo', 0, '{tra-dao-cam-sa,tra-vai-nhai}')
+  ('welcome-10', 'Giảm 10% đơn đầu tiên', 'Quà chào mừng thành viên mới. Áp dụng mọi món.', 0, '#2F8F5B', 14, 'percent', 10, '{}'),
+  ('upsize-free', 'Miễn phí nâng size', 'Nâng size M lên L cho 1 ly bất kỳ.', 20, '#3E9E6B', 30, 'upsize', 4000, '{}'),
+  ('topping-free', 'Tặng 1 topping', 'Chọn 1 topping bất kỳ, miễn phí.', 25, '#A66F12', 30, 'topping', 0, '{}'),
+  ('banh-20k', 'Giảm 20.000đ món bánh', 'Áp dụng cho Croissant, Bánh chuối, Tiramisu.', 40, '#1F6B44', 30, 'item_amount', 20000, '{croissant-bo,banh-chuoi-nuong,tiramisu}'),
+  ('ly-free', 'Tặng 1 ly Cà phê sữa đá', 'Size S, giảm đúng giá 1 ly khi có trong giỏ.', 60, '#1F3A2B', 30, 'free_item', 0, '{ca-phe-sua-da}'),
+  ('combo-2', 'Mua 1 tặng 1 Trà trái cây', 'Áp dụng Trà đào, Trà vải. Thứ 2–Thứ 5.', 90, '#8F6512', 21, 'bogo', 0, '{tra-dao-cam-sa,tra-vai-nhai}')
 on conflict (id) do update set
   title = excluded.title, description = excluded.description, cost_points = excluded.cost_points,
   color = excluded.color, valid_days = excluded.valid_days,

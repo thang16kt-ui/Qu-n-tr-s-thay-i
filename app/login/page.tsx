@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <main className="relative mx-auto flex min-h-dvh max-w-md flex-col overflow-hidden px-6 pt-safe">
       <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-cream-2" />
-      <div className="pointer-events-none absolute -left-16 top-56 h-40 w-40 rounded-full bg-[#ead9c3]/60" />
+      <div className="pointer-events-none absolute -left-16 top-56 h-40 w-40 rounded-full bg-[#d6e9d4]/70" />
 
       <div className="relative mt-20">
         <Logo size={64} withText />

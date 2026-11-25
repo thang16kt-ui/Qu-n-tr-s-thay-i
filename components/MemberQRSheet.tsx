@@ -12,7 +12,7 @@ export default function MemberQRSheet({ open, onClose }: { open: boolean; onClos
   return (
     <Sheet open={open} onClose={onClose} title="Mã thành viên">
       <div className="flex flex-col items-center pb-4">
-        <div className="rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(43,29,22,0.5)]">
+        <div className="rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(24,42,32,0.35)]">
           <QRCode value={value} size={232} />
         </div>
         <p className="mt-3 max-w-xs text-center text-sm text-bean">

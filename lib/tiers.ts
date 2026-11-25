@@ -2,10 +2,10 @@ export type TierInfo = { name: string; min: number; from: string; to: string; pe
 
 /** Hạng tính theo tổng điểm đã tích luỹ (khớp với hàm tier_for trong schema.sql) */
 export const TIERS: TierInfo[] = [
-  { name: "Mầm", min: 0, from: "#D9B99A", to: "#B08A6B", perk: "Tích 1 điểm cho mỗi 10.000đ" },
-  { name: "Chồi", min: 50, from: "#D49A6E", to: "#C47A4A", perk: "Tặng 1 topping mỗi tháng" },
-  { name: "Cây", min: 150, from: "#9C6B4A", to: "#6E4A33", perk: "Miễn phí nâng size ngày sinh nhật" },
-  { name: "Cổ thụ", min: 400, from: "#4A3226", to: "#2B1D16", perk: "Ưu tiên pha chế + quà riêng" },
+  { name: "Mầm", min: 0, from: "#A8D5B5", to: "#6FB58C", perk: "Tích 1 điểm cho mỗi 10.000đ" },
+  { name: "Chồi", min: 50, from: "#6FB58C", to: "#2F8F5B", perk: "Tặng 1 topping mỗi tháng" },
+  { name: "Cây", min: 150, from: "#2F8F5B", to: "#1F6B44", perk: "Miễn phí nâng size ngày sinh nhật" },
+  { name: "Cổ thụ", min: 400, from: "#1F3A2B", to: "#14261C", perk: "Ưu tiên pha chế + quà riêng" },
 ];
 
 /** 10.000đ = 1 điểm */

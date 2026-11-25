@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
-<rect width="240" height="240" fill="#EFE5D8"/>
-<circle cx="120" cy="132" r="96" fill="#FFFCF8" opacity="0.6"/>
+<rect width="240" height="240" fill="#E8F1E2"/>
+<circle cx="120" cy="132" r="96" fill="#FDFEFB" opacity="0.7"/>
 <ellipse cx="120" cy="222" rx="62" ry="8" fill="#000" opacity="0.08"/>
 <defs><clipPath id="c"><path d="M66 62 L174 62 L160 212 Q159 220 151 220 L89 220 Q81 220 80 212 Z"/></clipPath></defs>
 <rect x="128" y="18" width="11" height="120" rx="5" fill="#6B4226" transform="rotate(14 133 78)"/>

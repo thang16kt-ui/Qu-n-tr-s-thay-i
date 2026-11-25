@@ -7,7 +7,7 @@ export default function VoucherCard({ v, code, expires, action }: {
 }) {
   return (
     <div className="card flex overflow-hidden">
-      <div className="relative grid w-24 shrink-0 place-items-center text-center text-cream" style={{ background: v.color || "#C8894D" }}>
+      <div className="relative grid w-24 shrink-0 place-items-center text-center text-cream" style={{ background: v.color || "#27804F" }}>
         <div className="px-2 text-[0.7rem] font-semibold uppercase leading-tight tracking-wider">
           {v.cost_points > 0 ? <><span className="block text-2xl font-bold">{v.cost_points}</span>điểm</> : <span className="text-sm">Quà tặng</span>}
         </div>

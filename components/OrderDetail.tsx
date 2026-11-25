@@ -153,7 +153,7 @@ export default function OrderDetail({ order }: { order: Order }) {
           <div className="mt-5 text-center">
             <div className="text-6xl font-bold leading-none tracking-tight text-bean-dark">#{order.code}</div>
           </div>
-          <div className="mx-auto mt-5 w-fit rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(43,29,22,0.5)]">
+          <div className="mx-auto mt-5 w-fit rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(24,42,32,0.35)]">
             {phone && <QRCode value={qrValue} size={224} />}
           </div>
           <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">

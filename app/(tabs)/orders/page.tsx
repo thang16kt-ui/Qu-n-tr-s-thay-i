@@ -18,15 +18,15 @@ function pill(o: Order) {
 
 function ActiveCard({ o }: { o: Order }) {
   return (
-    <Link href={`/orders/?id=${o.id}`} className="relative block overflow-hidden rounded-3xl bg-gradient-to-br from-bean-dark to-bean p-5 text-paper shadow-[0_22px_44px_-24px_rgba(43,29,22,0.8)]">
+    <Link href={`/orders/?id=${o.id}`} className="relative block overflow-hidden rounded-3xl bg-gradient-to-br from-[#34a06a] to-caramel p-5 text-white shadow-[0_22px_44px_-24px_rgba(24,90,52,0.75)]">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-[#e9c9ae]">Đơn đang xử lý</div>
+          <div className="text-xs uppercase tracking-[0.18em] text-[#dff3e5]">Đơn đang xử lý</div>
           <div className="mt-1 text-5xl font-bold leading-none tracking-tight">#{o.code}</div>
         </div>
-        <span className="rounded-full bg-caramel px-3 py-1 text-xs font-bold text-white">{STATUS_LABEL[viewStatus(o)]}</span>
+        <span className="rounded-full bg-mustard px-3 py-1 text-xs font-bold text-mustard-ink">{STATUS_LABEL[viewStatus(o)]}</span>
       </div>
-      <div className="mt-3 line-clamp-1 text-sm text-paper/75">{o.items.map((l) => `${l.qty}× ${l.name}`).join(", ")}</div>
+      <div className="mt-3 line-clamp-1 text-sm text-white/85">{o.items.map((l) => `${l.qty}× ${l.name}`).join(", ")}</div>
       <div className="mt-4 flex items-center justify-between">
         <span className="font-semibold">{vnd(o.total)}</span>
         <span className="flex items-center gap-1.5 rounded-full bg-paper px-4 py-2 text-sm font-semibold text-bean-dark">

@@ -63,7 +63,7 @@ export default function OrderPage() {
               <div className="mt-auto flex items-center justify-between pt-2">
                 <span className="font-bold text-bean">{vnd(it.price)}</span>
                 <button disabled={!it.available} onClick={() => setPickedId(it.id)}
-                  className={`flex items-center gap-0.5 rounded-full py-1.5 pl-2 pr-3 text-xs font-bold ${it.available ? "bg-bean text-cream active:scale-95" : "bg-line text-muted"}`}>
+                  className={`flex items-center gap-0.5 rounded-full py-1.5 pl-2 pr-3 text-xs font-bold ${it.available ? "bg-mustard text-mustard-ink active:scale-95" : "bg-line text-muted"}`}>
                   <IPlus size={14} /> Thêm
                 </button>
               </div>
