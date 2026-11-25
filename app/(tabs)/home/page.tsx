@@ -5,6 +5,7 @@ import { useMyOrders } from "@/lib/my-orders";
 import { useMyVouchers } from "@/lib/vouchers";
 import { ACTIVE, STATUS_LABEL, viewStatus } from "@/lib/orders";
 import { PROMOS } from "@/lib/promos";
+import { asset } from "@/lib/api";
 import MemberCard from "@/components/MemberCard";
 import NotificationBell from "@/components/NotificationBell";
 import VoucherCard from "@/components/VoucherCard";
@@ -66,7 +67,7 @@ export default function HomePage() {
             </span>
           </span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/menu/ca-phe-sua-da.svg" alt="" className="absolute -bottom-4 -right-6 h-36 w-36 rounded-full" />
+          <img src={asset("/menu/ca-phe-sua-da.svg")} alt="" className="absolute -bottom-4 -right-6 h-36 w-36 rounded-full" />
         </Link>
       )}
 
@@ -82,7 +83,7 @@ export default function HomePage() {
                 <div className="mt-1 text-xs leading-snug text-bean-dark/75">{p.body}</div>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.image} alt="" className="absolute -bottom-3 -right-4 h-36 w-36 rounded-full" />
+              <img src={asset(p.image)} alt="" className="absolute -bottom-3 -right-4 h-36 w-36 rounded-full" />
             </Link>
           ))}
         </div>

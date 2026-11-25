@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { sb } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useMyVouchers } from "@/lib/vouchers";
 import type { Voucher } from "@/lib/types";
@@ -23,13 +24,13 @@ export default function OffersPage() {
   async function redeem(v: Voucher) {
     if (!confirm(`Dùng ${v.cost_points} điểm để đổi “${v.title}”?`)) return;
     setBusy(v.id);
-    const res = await fetch("/api/vouchers/redeem", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ phone, voucherId: v.id }),
-    });
-    const data = await res.json();
+    try {
+      await api.redeem(phone!, v.id);
+    } catch (e) {
+      setBusy(null);
+      return toast((e as Error).message);
+    }
     setBusy(null);
-    if (!res.ok) return toast(data.error || "Không đổi được");
     toast("Đổi ưu đãi thành công 🎉");
     await reload();
     setTab("mine");

@@ -10,6 +10,7 @@ import { describeSelection } from "@/lib/pricing";
 import { prettyPhone, vnd } from "@/lib/format";
 import { tierInfo } from "@/lib/tiers";
 import { currentSubscription } from "@/lib/push";
+import { api } from "@/lib/api";
 import type { Order } from "@/lib/types";
 import QRCode from "@/components/QRCode";
 import PushCard from "@/components/PushCard";
@@ -113,10 +114,7 @@ export default function QRPage() {
   }, [mode]);
 
   async function attach(orderId: string, subscription: PushSubscriptionJSON) {
-    await fetch(`/api/orders/${orderId}/subscribe`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ phone, subscription }),
-    }).catch(() => {});
+    await api.attachPush(phone!, orderId, subscription).catch(() => {});
   }
 
   function dismiss() {

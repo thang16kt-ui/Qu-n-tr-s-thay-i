@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { MenuItem, Selection } from "@/lib/types";
 import { sanitizeSelection, unitPrice } from "@/lib/pricing";
 import { vnd } from "@/lib/format";
+import { asset } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import Sheet from "./Sheet";
 import { IMinus, IPlus, ICheck } from "./Icons";
@@ -71,7 +72,7 @@ export default function ItemSheet({ item, onClose }: { item: MenuItem | null; on
       }>
       <div className="flex gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.image || "/logo-mark.svg"} alt="" className="h-28 w-28 rounded-3xl bg-cream-2 object-cover" />
+        <img src={asset(item.image)} alt="" className="h-28 w-28 rounded-3xl bg-cream-2 object-cover" />
         <div className="flex-1">
           <p className="text-sm leading-relaxed text-muted">{item.description}</p>
           <p className="mt-2 text-lg font-bold text-bean">{vnd(item.price)}</p>

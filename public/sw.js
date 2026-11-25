@@ -19,14 +19,15 @@ self.addEventListener("push", (event) => {
       tag: data.tag || "moc-order",
       renotify: true,
       vibrate: [200, 100, 200],
-      data: { url: data.url || "/qr" },
+      data: { url: data.url || "qr/" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/qr";
+  const rel = ((event.notification.data && event.notification.data.url) || "qr/").replace(/^\//, "");
+  const url = new URL(rel, self.registration.scope).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const c of list) {

@@ -1,5 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { asset, staffApi, type StaffApi } from "@/lib/api";
+import { parseQR } from "@/lib/qr";
 import Link from "next/link";
 import { sb } from "@/lib/supabase";
 import { useMenu } from "@/lib/menu";
@@ -16,19 +18,10 @@ const COLS = "id,code,member_phone,items,total,status,created_at,confirmed_at,do
 const PIN_KEY = "moc.staffPin";
 
 function useStaffApi(pin: string) {
-  return useCallback(async (path: string, body?: unknown) => {
-    const res = await fetch(path, {
-      method: body === undefined ? "GET" : "POST",
-      headers: { "content-type": "application/json", "x-staff-pin": pin },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Lỗi");
-    return data;
-  }, [pin]);
+  return useMemo(() => staffApi(pin), [pin]);
 }
 
-function OrderActions({ order, api, onDone }: { order: Order; api: ReturnType<typeof useStaffApi>; onDone?: (o: Order) => void }) {
+function OrderActions({ order, api, onDone }: { order: Order; api: StaffApi; onDone?: (o: Order) => void }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const vs = viewStatus(order);
@@ -36,10 +29,10 @@ function OrderActions({ order, api, onDone }: { order: Order; api: ReturnType<ty
     if (status === "cancelled" && !confirm(`Huỷ đơn #${order.code}?`)) return;
     setBusy(true);
     try {
-      const r = await api(`/api/staff/orders/${order.id}`, { status });
+      const r = await api.setStatus(order.id, status);
       let msg = `#${order.code}: ${STATUS_LABEL[status]}`;
       if (r.points) msg += ` · +${r.points} điểm`;
-      if (status === "done") msg += r.pushed ? " · đã gửi thông báo" : r.hadSubscription ? " · gửi thông báo lỗi" : " · khách không bật thông báo";
+      if (status === "done") msg += r.hadSubscription ? " · đã gửi thông báo" : " · khách không bật thông báo";
       toast(msg);
       onDone?.(r.order);
     } catch (e) { toast((e as Error).message); }
@@ -57,7 +50,7 @@ function OrderActions({ order, api, onDone }: { order: Order; api: ReturnType<ty
   );
 }
 
-function OrderCard({ order, api, onDone }: { order: Order; api: ReturnType<typeof useStaffApi>; onDone?: (o: Order) => void }) {
+function OrderCard({ order, api, onDone }: { order: Order; api: StaffApi; onDone?: (o: Order) => void }) {
   const vs = viewStatus(order);
   const color = vs === "done" ? "bg-done/15 text-done" : vs === "pending" ? "bg-accent-soft text-caramel" : vs === "expired" || vs === "cancelled" ? "bg-danger-soft text-danger" : "bg-caramel/15 text-caramel";
   return (
@@ -78,7 +71,7 @@ function OrderCard({ order, api, onDone }: { order: Order; api: ReturnType<typeo
   );
 }
 
-function ScanTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
+function ScanTab({ api }: { api: StaffApi }) {
   const toast = useToast();
   const [camera, setCamera] = useState(false);
   const [manual, setManual] = useState("");
@@ -89,7 +82,9 @@ function ScanTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
   const scan = useCallback(async (text: string) => {
     setCamera(false);
     try {
-      setRes(await api("/api/staff/scan", { qr: text }));
+      const q = parseQR(text);
+      if (!q.ok) throw new Error(q.error);
+      setRes(await api.scan(q.phone, q.orderCode));
       setAmount("");
     } catch (e) { toast((e as Error).message); }
   }, [api, toast]);
@@ -98,7 +93,7 @@ function ScanTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
     if (!res) return;
     setBusy(true);
     try {
-      const r = await api("/api/staff/points", { phone: res.member.phone, amount: Number(amount.replace(/\D/g, "")) });
+      const r = await api.addPoints(res.member.phone, Number(amount.replace(/\D/g, "")));
       toast(`+${r.points} điểm cho ${prettyPhone(res.member.phone)}`);
       setRes({ ...res, member: r.member });
       setAmount("");
@@ -125,7 +120,10 @@ function ScanTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
             <button onClick={() => setRes(null)} className="text-sm text-muted">Xoá</button>
           </div>
           {res.orderCode && !res.order && <p className="rounded-2xl bg-danger-soft p-3 text-sm text-danger">Không tìm thấy đơn #{res.orderCode}.</p>}
-          {res.order && <OrderCard order={res.order} api={api} onDone={(o) => setRes({ ...res, order: o })} />}
+          {res.order && <OrderCard order={res.order} api={api} onDone={async (o) => {
+            setRes({ ...res, order: o });
+            api.scan(res.member.phone, o.code).then(setRes).catch(() => {});
+          }} />}
           {(!res.order || !ACTIVE.includes(res.order.status)) && (
             <div className="card p-4">
               <div className="font-semibold text-bean-dark">Tích điểm hoá đơn tại quầy</div>
@@ -144,7 +142,7 @@ function ScanTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
   );
 }
 
-function BoardTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
+function BoardTab({ api }: { api: StaffApi }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -181,7 +179,7 @@ function BoardTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
   );
 }
 
-function MenuTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
+function MenuTab({ api }: { api: StaffApi }) {
   const { items } = useMenu();
   const toast = useToast();
   return (
@@ -189,12 +187,12 @@ function MenuTab({ api }: { api: ReturnType<typeof useStaffApi> }) {
       {items.map((it) => (
         <li key={it.id} className="flex items-center gap-3 py-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={it.image || ""} alt="" className={`h-12 w-12 rounded-xl ${it.available ? "" : "grayscale opacity-60"}`} />
+          <img src={asset(it.image)} alt="" className={`h-12 w-12 rounded-xl ${it.available ? "" : "grayscale opacity-60"}`} />
           <div className="flex-1">
             <div className="font-semibold text-bean-dark">{it.name}</div>
             <div className="text-xs text-muted">{it.category} · {vnd(it.price)}</div>
           </div>
-          <button onClick={() => api("/api/staff/menu", { id: it.id, available: !it.available }).catch((e) => toast(e.message))}
+          <button onClick={() => api.setAvailable(it.id, !it.available).catch((e) => toast(e.message))}
             className={`relative h-8 w-14 rounded-full transition ${it.available ? "bg-done" : "bg-line"}`} aria-label="Còn hàng">
             <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${it.available ? "left-7" : "left-1"}`} />
           </button>
@@ -219,8 +217,7 @@ export default function StaffPage() {
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
-    const res = await fetch("/api/staff/menu", { headers: { "x-staff-pin": input } });
-    if (!res.ok) return setErr("Sai mã PIN");
+    try { await staffApi(input).check(); } catch { return setErr("Sai mã PIN"); }
     sessionStorage.setItem(PIN_KEY, input);
     setPin(input); setOk(true);
   }

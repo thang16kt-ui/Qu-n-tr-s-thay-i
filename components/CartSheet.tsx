@@ -5,6 +5,7 @@ import { useCart } from "@/lib/cart";
 import { useSession } from "@/lib/session";
 import { useMyOrders } from "@/lib/my-orders";
 import { currentSubscription } from "@/lib/push";
+import { api, asset } from "@/lib/api";
 import { unlockAudio } from "@/lib/sound";
 import { describeSelection } from "@/lib/pricing";
 import { pointsFor } from "@/lib/tiers";
@@ -30,21 +31,15 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          items: cart.lines.map(({ itemId, qty, size, sugar, ice, toppings, note }) => ({ itemId, qty, size, sugar, ice, toppings, note })),
-          push_subscription: await currentSubscription().catch(() => null),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Không đặt được món");
+      const order = await api.placeOrder(
+        phone!,
+        cart.lines.map(({ itemId, qty, size, sugar, ice, toppings, note }) => ({ itemId, qty, size, sugar, ice, toppings, note })),
+        await currentSubscription().catch(() => null),
+      );
       cart.clear();
       await refresh();
       onClose();
-      toast(`Đã đặt đơn #${data.order.code}`);
+      toast(`Đã đặt đơn #${order.code}`);
       router.push("/qr");
     } catch (e) {
       setError((e as Error).message);
@@ -77,7 +72,7 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
             return (
               <li key={i} className={`flex gap-3 py-4 ${out ? "opacity-60" : ""}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={l.image || "/logo-mark.svg"} alt="" className={`h-16 w-16 rounded-2xl bg-cream-2 ${out ? "grayscale" : ""}`} />
+                <img src={asset(l.image)} alt="" className={`h-16 w-16 rounded-2xl bg-cream-2 ${out ? "grayscale" : ""}`} />
                 <div className="flex-1">
                   <div className="font-semibold text-bean-dark">{l.name}</div>
                   <div className="text-xs text-muted">{describeSelection(l)}</div>

@@ -4,6 +4,7 @@ import { useMenu } from "@/lib/menu";
 import { useCart } from "@/lib/cart";
 import { CATEGORIES, type Category } from "@/lib/types";
 import { vnd } from "@/lib/format";
+import { asset } from "@/lib/api";
 import ItemSheet from "@/components/ItemSheet";
 import CartSheet from "@/components/CartSheet";
 import { IBag, IPlus, ISearch, IClose } from "@/components/Icons";
@@ -54,7 +55,7 @@ export default function OrderPage() {
           <div key={it.id} className={`card relative flex flex-col overflow-hidden ${it.available ? "" : "opacity-55"}`}>
             <button disabled={!it.available} onClick={() => setPickedId(it.id)} className="text-left">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={it.image || "/logo-mark.svg"} alt={it.name} className={`aspect-square w-full bg-cream-2 object-cover ${it.available ? "" : "grayscale"}`} />
+              <img src={asset(it.image)} alt={it.name} className={`aspect-square w-full bg-cream-2 object-cover ${it.available ? "" : "grayscale"}`} />
               {!it.available && <span className="absolute left-3 top-3 rounded-full bg-bean-dark/80 px-2.5 py-1 text-xs font-semibold text-cream">Hết hàng</span>}
             </button>
             <div className="flex flex-1 flex-col p-3">

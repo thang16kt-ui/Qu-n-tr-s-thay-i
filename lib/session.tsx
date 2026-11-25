@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { sb, supabaseConfigured } from "./supabase";
+import { api } from "./api";
 import type { Member } from "./types";
 
 type Session = {
@@ -44,16 +45,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [phone, refresh]);
 
   const login = useCallback(async (p: string) => {
-    const res = await fetch("/api/members", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ phone: p }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Không đăng nhập được");
-    localStorage.setItem(KEY, data.member.phone);
-    setMember(data.member);
-    setPhone(data.member.phone);
+    const m = await api.login(p);
+    localStorage.setItem(KEY, m.phone);
+    setMember(m);
+    setPhone(m.phone);
   }, []);
 
   const logout = useCallback(() => {

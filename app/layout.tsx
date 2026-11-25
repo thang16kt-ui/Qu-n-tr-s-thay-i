@@ -6,14 +6,17 @@ import "@fontsource/be-vietnam-pro/700.css";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
   title: "Mộc Coffee",
   description: "Tích điểm, đặt món trước và nhận ưu đãi tại Mộc Coffee",
   applicationName: "Mộc Coffee",
+  manifest: `${BASE}/manifest.webmanifest`,
   appleWebApp: { capable: true, title: "Mộc Coffee", statusBarStyle: "default" },
   icons: {
-    icon: [{ url: "/icons/favicon-48.png", sizes: "48x48" }, { url: "/icons/icon-192.png", sizes: "192x192" }],
-    apple: "/icons/apple-touch-icon.png",
+    icon: [{ url: `${BASE}/icons/favicon-48.png`, sizes: "48x48" }, { url: `${BASE}/icons/icon-192.png`, sizes: "192x192" }],
+    apple: `${BASE}/icons/apple-touch-icon.png`,
   },
 };
 

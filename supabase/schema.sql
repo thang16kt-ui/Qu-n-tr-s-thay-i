@@ -1,6 +1,6 @@
 -- =========================================================
--- Mộc Coffee — cấu trúc database (chạy trong Supabase → SQL Editor)
--- Chạy file này TRƯỚC, sau đó chạy seed.sql
+-- Mộc Coffee — database + toàn bộ logic (chạy trong Supabase → SQL Editor)
+-- Thứ tự: schema.sql → seed.sql → settings.example.sql (điền giá trị của bạn)
 -- =========================================================
 
 create extension if not exists pgcrypto;
@@ -54,6 +54,7 @@ create table if not exists point_log (
   created_at   timestamptz not null default now()
 );
 create index if not exists point_log_member_idx on point_log(member_phone, created_at desc);
+create index if not exists point_log_order_idx on point_log(order_id);
 
 -- ---------- Ưu đãi (dữ liệu mẫu) ----------
 create table if not exists vouchers (
@@ -76,63 +77,12 @@ create table if not exists member_vouchers (
   created_at   timestamptz not null default now(),
   expires_at   timestamptz not null
 );
+create index if not exists member_vouchers_member_idx on member_vouchers(member_phone);
+create index if not exists member_vouchers_voucher_idx on member_vouchers(voucher_id);
 
 -- =========================================================
--- Hàm: tính hạng theo tổng điểm đã TÍCH LUỸ (không giảm khi đổi quà)
--- =========================================================
-create or replace function tier_for(total_earned integer) returns text
-language sql immutable as $$
-  select case
-    when total_earned >= 400 then 'Cổ thụ'
-    when total_earned >= 150 then 'Cây'
-    when total_earned >= 50  then 'Chồi'
-    else 'Mầm'
-  end;
-$$;
-
--- Cộng điểm (atomic): ghi log + cập nhật điểm + cập nhật hạng
-create or replace function add_points(p_phone text, p_order uuid, p_points integer, p_note text)
-returns members language plpgsql security definer as $$
-declare m members;
-begin
-  insert into point_log(member_phone, order_id, points, note)
-  values (p_phone, p_order, p_points, p_note);
-
-  update members set
-    points = points + p_points,
-    tier = tier_for((select coalesce(sum(points),0)::int from point_log
-                     where member_phone = p_phone and points > 0))
-  where phone = p_phone
-  returning * into m;
-  return m;
-end $$;
-
--- Đổi ưu đãi bằng điểm
-create or replace function redeem_voucher(p_phone text, p_voucher text)
-returns member_vouchers language plpgsql security definer as $$
-declare v vouchers; m members; mv member_vouchers;
-begin
-  select * into v from vouchers where id = p_voucher and active;
-  if not found then raise exception 'Ưu đãi không tồn tại'; end if;
-
-  select * into m from members where phone = p_phone for update;
-  if not found then raise exception 'Không tìm thấy thành viên'; end if;
-  if m.points < v.cost_points then raise exception 'Bạn chưa đủ điểm để đổi ưu đãi này'; end if;
-
-  update members set points = points - v.cost_points where phone = p_phone;
-  insert into point_log(member_phone, points, note)
-  values (p_phone, -v.cost_points, 'Đổi: ' || v.title);
-
-  insert into member_vouchers(member_phone, voucher_id, expires_at)
-  values (p_phone, v.id, now() + make_interval(days => v.valid_days))
-  returning * into mv;
-  return mv;
-end $$;
-
--- =========================================================
--- Bảo mật (RLS)
--- Bản mô phỏng: KHÔNG có mật khẩu, nên trình duyệt chỉ được ĐỌC.
--- Mọi thao tác GHI đi qua API của app (dùng service role key ở server).
+-- Bảo mật (RLS): trình duyệt chỉ được ĐỌC bảng.
+-- Mọi thao tác GHI đi qua các hàm bên dưới (security definer).
 -- =========================================================
 alter table members         enable row level security;
 alter table menu_items      enable row level security;
@@ -147,7 +97,6 @@ drop policy if exists "read orders" on orders;
 drop policy if exists "read point_log" on point_log;
 drop policy if exists "read vouchers" on vouchers;
 drop policy if exists "read member_vouchers" on member_vouchers;
-
 create policy "read members"         on members         for select using (true);
 create policy "read menu"            on menu_items      for select using (true);
 create policy "read orders"          on orders          for select using (true);
@@ -155,18 +104,350 @@ create policy "read point_log"       on point_log       for select using (true);
 create policy "read vouchers"        on vouchers        for select using (true);
 create policy "read member_vouchers" on member_vouchers for select using (true);
 
--- Trình duyệt không được gọi trực tiếp các hàm cộng/trừ điểm
-revoke execute on function add_points(text, uuid, integer, text) from public, anon, authenticated;
-revoke execute on function redeem_voucher(text, text) from public, anon, authenticated;
-grant  execute on function add_points(text, uuid, integer, text) to service_role;
-grant  execute on function redeem_voucher(text, text) to service_role;
+grant usage on schema public to anon, authenticated;
+grant select on members, menu_items, orders, point_log, vouchers, member_vouchers to anon, authenticated;
 
--- =========================================================
 -- Realtime: menu, đơn hàng, điểm thành viên
--- =========================================================
 do $$
 begin
   begin alter publication supabase_realtime add table menu_items; exception when duplicate_object then null; end;
   begin alter publication supabase_realtime add table orders;     exception when duplicate_object then null; end;
   begin alter publication supabase_realtime add table members;    exception when duplicate_object then null; end;
 end $$;
+
+-- =========================================================
+-- Cấu hình bí mật (schema "private" không mở ra API)
+--   staff_pin, vapid_public, vapid_private, vapid_subject, push_url
+-- =========================================================
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+create table if not exists private.settings (key text primary key, value text not null);
+
+create or replace function private.setting(k text) returns text
+language sql stable security definer set search_path = '' as $$
+  select value from private.settings where key = k
+$$;
+
+create or replace function private.check_phone(p text) returns void
+language plpgsql immutable as $$
+begin
+  if p is null or p !~ '^0[0-9]{9}$' then raise exception 'Số điện thoại không hợp lệ'; end if;
+end $$;
+
+create or replace function private.check_pin(p text) returns void
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if p is null or p is distinct from private.setting('staff_pin') then
+    raise exception 'Sai mã PIN nhân viên';
+  end if;
+end $$;
+
+-- Đơn "Chờ xác nhận" quá 30 phút → huỷ
+create or replace function private.expire_stale() returns void
+language sql security definer set search_path = '' as $$
+  update public.orders set status = 'cancelled'
+  where status = 'pending' and created_at < now() - interval '30 minutes'
+$$;
+
+create or replace function private.order_json(o public.orders) returns jsonb
+language sql immutable as $$ select to_jsonb(o) - 'push_subscription' $$;
+
+-- =========================================================
+-- Điểm & hạng
+-- =========================================================
+create or replace function tier_for(total_earned integer) returns text
+language sql immutable as $$
+  select case
+    when total_earned >= 400 then 'Cổ thụ'
+    when total_earned >= 150 then 'Cây'
+    when total_earned >= 50  then 'Chồi'
+    else 'Mầm'
+  end;
+$$;
+
+-- Cộng/trừ điểm (atomic). Hạng tính theo tổng điểm đã TÍCH LUỸ.
+create or replace function add_points(p_phone text, p_order uuid, p_points integer, p_note text)
+returns members language plpgsql security definer set search_path = public as $$
+declare m members;
+begin
+  insert into point_log(member_phone, order_id, points, note) values (p_phone, p_order, p_points, p_note);
+  update members set
+    points = points + p_points,
+    tier = tier_for((select coalesce(sum(points),0)::int from point_log where member_phone = p_phone and points > 0))
+  where phone = p_phone
+  returning * into m;
+  return m;
+end $$;
+
+-- =========================================================
+-- Hàm cho KHÁCH
+-- =========================================================
+
+-- Đăng nhập bằng SĐT = tạo thành viên nếu chưa có (+ voucher chào mừng)
+create or replace function member_login(p_phone text) returns members
+language plpgsql security definer set search_path = public as $$
+declare m members; v vouchers;
+begin
+  perform private.check_phone(p_phone);
+  select * into m from members where phone = p_phone;
+  if found then return m; end if;
+  insert into members(phone) values (p_phone) on conflict do nothing returning * into m;
+  if not found then
+    select * into m from members where phone = p_phone;
+    return m;
+  end if;
+  select * into v from vouchers where id = 'welcome-10' and active;
+  if found then
+    insert into member_vouchers(member_phone, voucher_id, expires_at)
+    values (p_phone, v.id, now() + make_interval(days => v.valid_days));
+  end if;
+  return m;
+end $$;
+
+create or replace function member_set_name(p_phone text, p_name text) returns members
+language plpgsql security definer set search_path = public as $$
+declare m members;
+begin
+  perform private.check_phone(p_phone);
+  update members set name = nullif(left(trim(coalesce(p_name, '')), 40), '')
+  where phone = p_phone returning * into m;
+  return m;
+end $$;
+
+-- Đặt món: giá được tính lại hoàn toàn từ thực đơn (không tin giá từ trình duyệt)
+create or replace function place_order(p_phone text, p_items jsonb, p_sub jsonb default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_active text; v_it jsonb; v_m menu_items; v_opts jsonb; v_arr jsonb;
+  v_lines jsonb := '[]'::jsonb; v_total int := 0; v_qty int; v_price int; v_extra int;
+  v_size text; v_sugar text; v_ice text; v_tops jsonb; v_note text;
+  v_count int; v_code text; v_order orders;
+begin
+  perform private.check_phone(p_phone);
+  if not exists (select 1 from members where phone = p_phone) then
+    raise exception 'Không tìm thấy thành viên, vui lòng đăng nhập lại';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'Giỏ hàng đang trống';
+  end if;
+  if jsonb_array_length(p_items) > 30 then raise exception 'Giỏ hàng quá nhiều món'; end if;
+
+  perform private.expire_stale();
+  perform pg_advisory_xact_lock(hashtext('moc-place-order'));
+
+  -- Mỗi khách chỉ 1 đơn đang chờ (vì chỉ có MỘT mã QR)
+  select o.code into v_active from orders o
+  where o.member_phone = p_phone and o.status in ('pending','confirmed','making') limit 1;
+  if v_active is not null then
+    raise exception 'Bạn đang có đơn #% chưa xong. Đưa mã QR cho nhân viên hoặc chờ đơn xong nhé.', v_active;
+  end if;
+
+  for v_it in select value from jsonb_array_elements(p_items) loop
+    select * into v_m from menu_items where id = v_it->>'itemId';
+    if not found then raise exception 'Có món không còn trong thực đơn'; end if;
+    if not v_m.available then raise exception '% vừa hết hàng, vui lòng bỏ khỏi giỏ', v_m.name; end if;
+
+    v_opts  := coalesce(v_m.options, '{}'::jsonb);
+    v_qty   := greatest(1, least(20, floor(coalesce((v_it->>'qty')::numeric, 1))::int));
+    v_price := v_m.price;
+
+    -- size
+    v_size := null; v_extra := 0;
+    v_arr := coalesce(v_opts->'sizes', '[]'::jsonb);
+    if jsonb_array_length(v_arr) > 0 then
+      select s->>'name', (s->>'price')::int into v_size, v_extra
+      from jsonb_array_elements(v_arr) s where s->>'name' = v_it->>'size' limit 1;
+      if v_size is null then v_size := v_arr->0->>'name'; v_extra := (v_arr->0->>'price')::int; end if;
+      v_price := v_price + coalesce(v_extra, 0);
+    end if;
+
+    -- đường / đá (mặc định: lựa chọn thứ 3 = "Vừa")
+    v_arr := coalesce(v_opts->'sugar', '[]'::jsonb);
+    v_sugar := case when jsonb_array_length(v_arr) = 0 then null
+                    when v_arr ? (v_it->>'sugar') then v_it->>'sugar'
+                    else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
+    v_arr := coalesce(v_opts->'ice', '[]'::jsonb);
+    v_ice := case when jsonb_array_length(v_arr) = 0 then null
+                  when v_arr ? (v_it->>'ice') then v_it->>'ice'
+                  else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
+
+    -- topping hợp lệ
+    select coalesce(jsonb_agg(tp->>'name' order by ord), '[]'::jsonb), coalesce(sum((tp->>'price')::int), 0)
+      into v_tops, v_extra
+    from jsonb_array_elements(coalesce(v_opts->'toppings', '[]'::jsonb)) with ordinality as x(tp, ord)
+    where jsonb_typeof(v_it->'toppings') = 'array' and (v_it->'toppings') ? (tp->>'name');
+    v_price := v_price + v_extra;
+
+    v_note := nullif(left(trim(coalesce(v_it->>'note', '')), 120), '');
+
+    v_lines := v_lines || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+      'itemId', v_m.id, 'name', v_m.name, 'image', v_m.image, 'qty', v_qty,
+      'unitPrice', v_price, 'lineTotal', v_price * v_qty,
+      'size', v_size, 'sugar', v_sugar, 'ice', v_ice, 'toppings', v_tops, 'note', v_note)));
+    v_total := v_total + v_price * v_qty;
+  end loop;
+
+  -- Số đơn trong ngày (giờ VN): A1…A99, B1…
+  select count(*) into v_count from orders
+  where created_at >= (date_trunc('day', now() at time zone 'Asia/Ho_Chi_Minh') at time zone 'Asia/Ho_Chi_Minh');
+  v_code := substr('ABCDEFGH', (v_count / 99) % 8 + 1, 1) || ((v_count % 99) + 1)::text;
+
+  insert into orders(code, member_phone, items, total, status, push_subscription)
+  values (v_code, p_phone, v_lines, v_total, 'pending',
+          case when jsonb_typeof(p_sub) = 'object' and p_sub ? 'endpoint' then p_sub end)
+  returning * into v_order;
+  return private.order_json(v_order);
+end $$;
+
+-- Gắn Web Push vào đơn đang chờ (khi khách bật thông báo sau khi đặt)
+create or replace function attach_push(p_phone text, p_order uuid, p_sub jsonb) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if jsonb_typeof(p_sub) <> 'object' or not (p_sub ? 'endpoint') then return false; end if;
+  update orders set push_subscription = p_sub
+  where id = p_order and member_phone = p_phone and status in ('pending','confirmed','making');
+  return found;
+end $$;
+
+-- Đổi ưu đãi bằng điểm
+create or replace function redeem_voucher(p_phone text, p_voucher text)
+returns member_vouchers language plpgsql security definer set search_path = public as $$
+declare v vouchers; m members; mv member_vouchers;
+begin
+  select * into v from vouchers where id = p_voucher and active;
+  if not found then raise exception 'Ưu đãi không tồn tại'; end if;
+  select * into m from members where phone = p_phone for update;
+  if not found then raise exception 'Không tìm thấy thành viên'; end if;
+  if m.points < v.cost_points then raise exception 'Bạn chưa đủ điểm để đổi ưu đãi này'; end if;
+
+  update members set points = points - v.cost_points where phone = p_phone;
+  insert into point_log(member_phone, points, note) values (p_phone, -v.cost_points, 'Đổi: ' || v.title);
+  insert into member_vouchers(member_phone, voucher_id, expires_at)
+  values (p_phone, v.id, now() + make_interval(days => v.valid_days))
+  returning * into mv;
+  return mv;
+end $$;
+
+-- =========================================================
+-- Hàm cho NHÂN VIÊN (cần mã PIN)
+-- =========================================================
+create or replace function staff_check(p_pin text) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin perform private.check_pin(p_pin); return true; end $$;
+
+create or replace function staff_scan(p_pin text, p_phone text, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare m members; o orders;
+begin
+  perform private.check_pin(p_pin);
+  perform private.check_phone(p_phone);
+  perform private.expire_stale();
+  insert into members(phone) values (p_phone) on conflict do nothing;
+  select * into m from members where phone = p_phone;
+  if coalesce(p_code, '') <> '' then
+    select * into o from orders where member_phone = p_phone and code = p_code order by created_at desc limit 1;
+  end if;
+  return jsonb_build_object(
+    'member', to_jsonb(m),
+    'order', case when o.id is null then null else private.order_json(o) end,
+    'orderCode', nullif(p_code, ''));
+end $$;
+
+-- Đổi trạng thái: xác nhận (cộng điểm) → đang pha → đã xong (trigger gửi push) / huỷ
+create or replace function staff_set_status(p_pin text, p_order uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o orders; allowed text[]; pts int := 0;
+begin
+  perform private.check_pin(p_pin);
+  select * into o from orders where id = p_order for update;
+  if not found then raise exception 'Không tìm thấy đơn'; end if;
+  allowed := case o.status
+    when 'pending'   then array['confirmed','making','done','cancelled']
+    when 'confirmed' then array['making','done','cancelled']
+    when 'making'    then array['done','cancelled']
+    else array[]::text[] end;
+  if not (p_status = any(allowed)) then
+    raise exception 'Đơn #% đã ở trạng thái "%", không chuyển sang "%" được', o.code, o.status, p_status;
+  end if;
+
+  update orders set
+    status = p_status,
+    confirmed_at = case when p_status <> 'cancelled' then coalesce(confirmed_at, now()) else confirmed_at end,
+    done_at = case when p_status = 'done' then now() else done_at end
+  where id = p_order returning * into o;
+
+  if p_status <> 'cancelled' and not exists (select 1 from point_log where order_id = p_order) then
+    pts := floor(o.total / 10000.0);
+    if pts > 0 then perform add_points(o.member_phone, o.id, pts, 'Đơn #' || o.code); end if;
+  end if;
+
+  return jsonb_build_object('order', private.order_json(o), 'points', pts,
+                            'hadSubscription', o.push_subscription is not null);
+end $$;
+
+-- Tích điểm cho hoá đơn mua tại quầy (mã QR chỉ có SĐT)
+create or replace function staff_add_points(p_pin text, p_phone text, p_amount integer)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare pts int; m members;
+begin
+  perform private.check_pin(p_pin);
+  perform private.check_phone(p_phone);
+  if p_amount is null or p_amount <= 0 or p_amount > 10000000 then raise exception 'Số tiền không hợp lệ'; end if;
+  pts := floor(p_amount / 10000.0);
+  if pts <= 0 then raise exception 'Hoá đơn dưới 10.000đ chưa được tích điểm'; end if;
+  insert into members(phone) values (p_phone) on conflict do nothing;
+  m := add_points(p_phone, null, pts,
+       'Hoá đơn tại quầy ' || replace(to_char(p_amount, 'FM999,999,999'), ',', '.') || 'đ');
+  return jsonb_build_object('member', to_jsonb(m), 'points', pts);
+end $$;
+
+-- Bật / tắt "hết hàng" (khách thấy ngay nhờ realtime)
+create or replace function staff_set_available(p_pin text, p_id text, p_available boolean)
+returns menu_items language plpgsql security definer set search_path = public as $$
+declare it menu_items;
+begin
+  perform private.check_pin(p_pin);
+  update menu_items set available = p_available where id = p_id returning * into it;
+  if not found then raise exception 'Không tìm thấy món'; end if;
+  return it;
+end $$;
+
+-- Quyền gọi hàm
+revoke execute on function add_points(text, uuid, integer, text) from public, anon, authenticated;
+grant  execute on function member_login(text), member_set_name(text, text),
+       place_order(text, jsonb, jsonb), attach_push(text, uuid, jsonb), redeem_voucher(text, text),
+       staff_check(text), staff_scan(text, text, text), staff_set_status(text, uuid, text),
+       staff_add_points(text, text, integer), staff_set_available(text, text, boolean)
+  to anon, authenticated;
+
+-- =========================================================
+-- Web Push: khi đơn chuyển "Đã xong" → gọi Edge Function send-push
+-- =========================================================
+create extension if not exists pg_net with schema extensions;
+
+create or replace function private.on_order_done() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.status = 'done' and old.status is distinct from 'done'
+     and new.push_subscription is not null and private.setting('push_url') is not null then
+    perform net.http_post(
+      url := private.setting('push_url'),
+      body := jsonb_build_object(
+        'subscription', new.push_subscription,
+        'title', 'Mộc Coffee',
+        'body', 'Đơn #' || new.code || ' đã xong, mời bạn ra quầy nhận',
+        'tag', 'order-' || new.id,
+        'url', 'qr/',
+        'vapid', jsonb_build_object(
+          'publicKey', private.setting('vapid_public'),
+          'privateKey', private.setting('vapid_private'),
+          'subject', coalesce(private.setting('vapid_subject'), 'mailto:admin@example.com'))),
+      headers := '{"Content-Type":"application/json"}'::jsonb
+    );
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists orders_done_push on orders;
+create trigger orders_done_push after update of status on orders
+for each row execute function private.on_order_done();

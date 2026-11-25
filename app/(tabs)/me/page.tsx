@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { sb } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useMyOrders } from "@/lib/my-orders";
 import { STATUS_LABEL, viewStatus } from "@/lib/orders";
@@ -37,11 +38,10 @@ export default function MePage() {
   }, [phone, member?.points]);
 
   async function saveName() {
-    const res = await fetch("/api/members", {
-      method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ phone, name }),
-    });
-    if (res.ok) { await refresh(); setEditing(false); toast("Đã lưu tên"); }
+    try {
+      await api.setName(phone!, name);
+      await refresh(); setEditing(false); toast("Đã lưu tên");
+    } catch (e) { toast((e as Error).message); }
   }
 
   const tier = tierInfo(member?.tier ?? "Mầm");

@@ -23,7 +23,8 @@ export function pushState(): PushState {
 export async function registerSW(): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
   try {
-    return await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
+    return await navigator.serviceWorker.register(`${base}/sw.js`, { scope: `${base}/` });
   } catch {
     return null;
   }
