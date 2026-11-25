@@ -6,7 +6,7 @@ Giao diện: **Next.js 16** xuất ra trang tĩnh. Toàn bộ dữ liệu và lo
 - **Trang chủ**: thẻ thành viên (hạng, điểm, tiến độ lên hạng, nút Mã QR), chương trình nổi bật, ưu đãi của tôi, chuông thông báo.
 - **Đặt món**: danh mục Cà phê / Trà / Đá xay / Bánh, tìm kiếm (gõ không dấu cũng được), size – đường – đá – topping – ghi chú, giỏ hàng, “Đặt món” (thanh toán tại quầy). Menu cập nhật realtime; món hết hàng tự xám lại.
 - **QR**: MỘT mã duy nhất `MOC|<SĐT>|<mã đơn>|<2 ký tự kiểm tra>`. Có đơn → số đơn lớn, danh sách món, trạng thái realtime. Đơn xong → màn hình chuyển xanh + kêu “ting ting”. Đơn huỷ/hết hạn → “Đơn đã hết hạn, vui lòng đặt lại”.
-- **Ưu đãi**: voucher của tôi / đổi ưu đãi bằng điểm.
+- **Ưu đãi**: voucher của tôi / đổi ưu đãi bằng điểm. Trong **giỏ hàng** chọn 1 voucher, giá tự trừ (tính trong Supabase); đơn bị huỷ/hết hạn thì voucher được trả lại.
 - **Cá nhân**: đổi tên, lịch sử điểm, lịch sử đơn, bật thông báo, hướng dẫn thêm vào màn hình chính, đăng xuất.
 - **Trang nhân viên** `/staff` (có PIN): quét QR bằng camera, xác nhận đơn (tự cộng điểm) → đang pha → đã xong (tự gửi thông báo), tích điểm cho hoá đơn tại quầy, bật/tắt món hết hàng.
 
@@ -55,6 +55,7 @@ App có sẵn hướng dẫn này ở tab QR và Cá nhân. Máy không nhận �
 | Đơn hết hạn | 30 phút chưa được quét | `private.expire_stale` + `lib/orders.ts` |
 | Số đơn | A1…A99, B1… đánh lại mỗi ngày (giờ VN) | `place_order` |
 | Mỗi khách | chỉ 1 đơn đang chờ (vì chỉ có 1 mã QR) | `place_order` |
+| Voucher | loại `percent`, `upsize`, `topping`, `item_amount`, `free_item`, `bogo` (cột `kind`, `value`, `item_ids` của bảng vouchers) | `private.voucher_discount` |
 
 **Thêm/sửa món**: Supabase → **Table Editor → menu_items**. Ảnh món ở `public/menu/` (tự vẽ, SVG); có thể thay bằng link ảnh thật trong cột `image`.
 **Đổi PIN nhân viên**: `update private.settings set value = '123456' where key = 'staff_pin';`

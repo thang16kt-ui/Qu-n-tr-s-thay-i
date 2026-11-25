@@ -9,13 +9,21 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
+/** Voucher của khách + số tiền giảm cho giỏ hàng hiện tại (tính trong Supabase) */
+export type VoucherOption = {
+  id: string; code: string; expires_at: string; title: string; description: string | null;
+  color: string | null; discount: number; reason: string | null;
+};
+
 export type OrderInput = { itemId: string; qty: number; size?: string; sugar?: string; ice?: string; toppings: string[]; note?: string };
 
 export const api = {
   login: (phone: string) => rpc<Member>("member_login", { p_phone: phone }),
   setName: (phone: string, name: string) => rpc<Member>("member_set_name", { p_phone: phone, p_name: name }),
-  placeOrder: (phone: string, items: OrderInput[], sub: PushSubscriptionJSON | null) =>
-    rpc<Order>("place_order", { p_phone: phone, p_items: items, p_sub: sub }),
+  placeOrder: (phone: string, items: OrderInput[], sub: PushSubscriptionJSON | null, voucherId: string | null) =>
+    rpc<Order>("place_order", { p_phone: phone, p_items: items, p_sub: sub, p_voucher: voucherId }),
+  previewVouchers: (phone: string, items: OrderInput[]) =>
+    rpc<VoucherOption[]>("preview_vouchers", { p_phone: phone, p_items: items }),
   attachPush: (phone: string, orderId: string, sub: PushSubscriptionJSON) =>
     rpc<boolean>("attach_push", { p_phone: phone, p_order: orderId, p_sub: sub }),
   redeem: (phone: string, voucherId: string) => rpc<MemberVoucher>("redeem_voucher", { p_phone: phone, p_voucher: voucherId }),

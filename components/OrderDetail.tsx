@@ -64,6 +64,12 @@ export function OrderItems({ order }: { order: Order }) {
             <span className="shrink-0 text-sm font-medium">{vnd(l.lineTotal)}</span>
           </li>
         ))}
+        {!!order.discount && (
+          <li className="space-y-1 py-3 text-sm">
+            <div className="flex justify-between text-muted"><span>Tạm tính</span><span>{vnd(order.subtotal ?? order.total + order.discount)}</span></div>
+            <div className="flex justify-between text-caramel"><span>Ưu đãi · {order.voucher_title}</span><span>−{vnd(order.discount)}</span></div>
+          </li>
+        )}
         <li className="flex justify-between py-3 font-bold text-bean-dark">
           <span>Tổng · thanh toán tại quầy</span><span>{vnd(order.total)}</span>
         </li>

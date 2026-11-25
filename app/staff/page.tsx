@@ -14,7 +14,7 @@ import Logo from "@/components/Logo";
 import Scanner from "@/components/Scanner";
 import { useToast } from "@/components/Toast";
 
-const COLS = "id,code,member_phone,items,total,status,created_at,confirmed_at,done_at";
+const COLS = "id,code,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at";
 const PIN_KEY = "moc.staffPin";
 
 function useStaffApi(pin: string) {
@@ -65,7 +65,8 @@ function OrderCard({ order, api, onDone }: { order: Order; api: StaffApi; onDone
           <li key={i}><b>{l.qty}×</b> {l.name}{describeSelection(l) && <span className="text-muted"> — {describeSelection(l)}</span>}{l.note && <i className="text-caramel"> “{l.note}”</i>}</li>
         ))}
       </ul>
-      <div className="mt-2 text-right font-bold text-bean">{vnd(order.total)}</div>
+      {!!order.discount && <div className="mt-2 text-right text-sm text-caramel">Ưu đãi: {order.voucher_title} (−{vnd(order.discount)})</div>}
+      <div className="mt-1 text-right font-bold text-bean">{vnd(order.total)}</div>
       <OrderActions order={order} api={api} onDone={onDone} />
     </div>
   );

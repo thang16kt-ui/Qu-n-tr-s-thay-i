@@ -214,91 +214,6 @@ begin
   return m;
 end $$;
 
--- Đặt món: giá được tính lại hoàn toàn từ thực đơn (không tin giá từ trình duyệt)
-create or replace function place_order(p_phone text, p_items jsonb, p_sub jsonb default null)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  v_active text; v_it jsonb; v_m menu_items; v_opts jsonb; v_arr jsonb;
-  v_lines jsonb := '[]'::jsonb; v_total int := 0; v_qty int; v_price int; v_extra int;
-  v_size text; v_sugar text; v_ice text; v_tops jsonb; v_note text;
-  v_count int; v_code text; v_order orders;
-begin
-  perform private.check_phone(p_phone);
-  if not exists (select 1 from members where phone = p_phone) then
-    raise exception 'Không tìm thấy thành viên, vui lòng đăng nhập lại';
-  end if;
-  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
-    raise exception 'Giỏ hàng đang trống';
-  end if;
-  if jsonb_array_length(p_items) > 30 then raise exception 'Giỏ hàng quá nhiều món'; end if;
-
-  perform private.expire_stale();
-  perform pg_advisory_xact_lock(hashtext('moc-place-order'));
-
-  -- Mỗi khách chỉ 1 đơn đang chờ (vì chỉ có MỘT mã QR)
-  select o.code into v_active from orders o
-  where o.member_phone = p_phone and o.status in ('pending','confirmed','making') limit 1;
-  if v_active is not null then
-    raise exception 'Bạn đang có đơn #% chưa xong. Đưa mã QR cho nhân viên hoặc chờ đơn xong nhé.', v_active;
-  end if;
-
-  for v_it in select value from jsonb_array_elements(p_items) loop
-    select * into v_m from menu_items where id = v_it->>'itemId';
-    if not found then raise exception 'Có món không còn trong thực đơn'; end if;
-    if not v_m.available then raise exception '% vừa hết hàng, vui lòng bỏ khỏi giỏ', v_m.name; end if;
-
-    v_opts  := coalesce(v_m.options, '{}'::jsonb);
-    v_qty   := greatest(1, least(20, floor(coalesce((v_it->>'qty')::numeric, 1))::int));
-    v_price := v_m.price;
-
-    -- size
-    v_size := null; v_extra := 0;
-    v_arr := coalesce(v_opts->'sizes', '[]'::jsonb);
-    if jsonb_array_length(v_arr) > 0 then
-      select s->>'name', (s->>'price')::int into v_size, v_extra
-      from jsonb_array_elements(v_arr) s where s->>'name' = v_it->>'size' limit 1;
-      if v_size is null then v_size := v_arr->0->>'name'; v_extra := (v_arr->0->>'price')::int; end if;
-      v_price := v_price + coalesce(v_extra, 0);
-    end if;
-
-    -- đường / đá (mặc định: lựa chọn thứ 3 = "Vừa")
-    v_arr := coalesce(v_opts->'sugar', '[]'::jsonb);
-    v_sugar := case when jsonb_array_length(v_arr) = 0 then null
-                    when v_arr ? (v_it->>'sugar') then v_it->>'sugar'
-                    else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
-    v_arr := coalesce(v_opts->'ice', '[]'::jsonb);
-    v_ice := case when jsonb_array_length(v_arr) = 0 then null
-                  when v_arr ? (v_it->>'ice') then v_it->>'ice'
-                  else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
-
-    -- topping hợp lệ
-    select coalesce(jsonb_agg(tp->>'name' order by ord), '[]'::jsonb), coalesce(sum((tp->>'price')::int), 0)
-      into v_tops, v_extra
-    from jsonb_array_elements(coalesce(v_opts->'toppings', '[]'::jsonb)) with ordinality as x(tp, ord)
-    where jsonb_typeof(v_it->'toppings') = 'array' and (v_it->'toppings') ? (tp->>'name');
-    v_price := v_price + v_extra;
-
-    v_note := nullif(left(trim(coalesce(v_it->>'note', '')), 120), '');
-
-    v_lines := v_lines || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
-      'itemId', v_m.id, 'name', v_m.name, 'image', v_m.image, 'qty', v_qty,
-      'unitPrice', v_price, 'lineTotal', v_price * v_qty,
-      'size', v_size, 'sugar', v_sugar, 'ice', v_ice, 'toppings', v_tops, 'note', v_note)));
-    v_total := v_total + v_price * v_qty;
-  end loop;
-
-  -- Số đơn trong ngày (giờ VN): A1…A99, B1…
-  select count(*) into v_count from orders
-  where created_at >= (date_trunc('day', now() at time zone 'Asia/Ho_Chi_Minh') at time zone 'Asia/Ho_Chi_Minh');
-  v_code := substr('ABCDEFGH', (v_count / 99) % 8 + 1, 1) || ((v_count % 99) + 1)::text;
-
-  insert into orders(code, member_phone, items, total, status, push_subscription)
-  values (v_code, p_phone, v_lines, v_total, 'pending',
-          case when jsonb_typeof(p_sub) = 'object' and p_sub ? 'endpoint' then p_sub end)
-  returning * into v_order;
-  return private.order_json(v_order);
-end $$;
-
 -- Gắn Web Push vào đơn đang chờ (khi khách bật thông báo sau khi đặt)
 create or replace function attach_push(p_phone text, p_order uuid, p_sub jsonb) returns boolean
 language plpgsql security definer set search_path = public as $$
@@ -415,10 +330,221 @@ end $$;
 -- Quyền gọi hàm
 revoke execute on function add_points(text, uuid, integer, text) from public, anon, authenticated;
 grant  execute on function member_login(text), member_set_name(text, text),
-       place_order(text, jsonb, jsonb), attach_push(text, uuid, jsonb), redeem_voucher(text, text),
+       attach_push(text, uuid, jsonb), redeem_voucher(text, text),
        staff_check(text), staff_scan(text, text, text), staff_set_status(text, uuid, text),
        staff_add_points(text, text, integer), staff_set_available(text, text, boolean)
   to anon, authenticated;
+
+-- =========================================================
+-- Ưu đãi trong giỏ hàng: cột bổ sung (an toàn khi chạy lại)
+-- =========================================================
+alter table vouchers add column if not exists kind text not null default 'percent';
+alter table vouchers add column if not exists value integer not null default 0;
+alter table vouchers add column if not exists item_ids text[] not null default '{}';
+alter table orders add column if not exists subtotal integer;
+alter table orders add column if not exists discount integer not null default 0;
+alter table orders add column if not exists voucher_id uuid references member_vouchers(id) on delete set null;
+alter table orders add column if not exists voucher_title text;
+create index if not exists orders_voucher_idx on orders(voucher_id);
+
+-- Tính giá các món trong giỏ (giá lấy từ thực đơn, không tin trình duyệt)
+create or replace function private.price_items(p_items jsonb) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_it jsonb; v_m menu_items; v_opts jsonb; v_arr jsonb;
+  v_lines jsonb := '[]'::jsonb; v_total int := 0; v_qty int; v_price int; v_extra int;
+  v_size text; v_sugar text; v_ice text; v_tops jsonb; v_note text;
+begin
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'Giỏ hàng đang trống';
+  end if;
+  if jsonb_array_length(p_items) > 30 then raise exception 'Giỏ hàng quá nhiều món'; end if;
+
+  for v_it in select value from jsonb_array_elements(p_items) loop
+    select * into v_m from menu_items where id = v_it->>'itemId';
+    if not found then raise exception 'Có món không còn trong thực đơn'; end if;
+    if not v_m.available then raise exception '% vừa hết hàng, vui lòng bỏ khỏi giỏ', v_m.name; end if;
+
+    v_opts  := coalesce(v_m.options, '{}'::jsonb);
+    v_qty   := greatest(1, least(20, floor(coalesce((v_it->>'qty')::numeric, 1))::int));
+    v_price := v_m.price;
+
+    v_size := null; v_extra := 0;
+    v_arr := coalesce(v_opts->'sizes', '[]'::jsonb);
+    if jsonb_array_length(v_arr) > 0 then
+      select s->>'name', (s->>'price')::int into v_size, v_extra
+      from jsonb_array_elements(v_arr) s where s->>'name' = v_it->>'size' limit 1;
+      if v_size is null then v_size := v_arr->0->>'name'; v_extra := (v_arr->0->>'price')::int; end if;
+      v_price := v_price + coalesce(v_extra, 0);
+    end if;
+
+    v_arr := coalesce(v_opts->'sugar', '[]'::jsonb);
+    v_sugar := case when jsonb_array_length(v_arr) = 0 then null
+                    when v_arr ? (v_it->>'sugar') then v_it->>'sugar'
+                    else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
+    v_arr := coalesce(v_opts->'ice', '[]'::jsonb);
+    v_ice := case when jsonb_array_length(v_arr) = 0 then null
+                  when v_arr ? (v_it->>'ice') then v_it->>'ice'
+                  else v_arr->>least(2, jsonb_array_length(v_arr) - 1) end;
+
+    select coalesce(jsonb_agg(tp->>'name' order by ord), '[]'::jsonb), coalesce(sum((tp->>'price')::int), 0)
+      into v_tops, v_extra
+    from jsonb_array_elements(coalesce(v_opts->'toppings', '[]'::jsonb)) with ordinality as x(tp, ord)
+    where jsonb_typeof(v_it->'toppings') = 'array' and (v_it->'toppings') ? (tp->>'name');
+    v_price := v_price + v_extra;
+
+    v_note := nullif(left(trim(coalesce(v_it->>'note', '')), 120), '');
+
+    v_lines := v_lines || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+      'itemId', v_m.id, 'name', v_m.name, 'image', v_m.image, 'qty', v_qty,
+      'unitPrice', v_price, 'lineTotal', v_price * v_qty,
+      'size', v_size, 'sugar', v_sugar, 'ice', v_ice, 'toppings', v_tops, 'note', v_note)));
+    v_total := v_total + v_price * v_qty;
+  end loop;
+  return jsonb_build_object('lines', v_lines, 'subtotal', v_total);
+end $$;
+
+-- Số tiền giảm của 1 ưu đãi cho giỏ hàng → {discount, reason}
+--   percent: giảm value% · upsize: giảm value khi có ly size L · topping: tặng topping đắt nhất
+--   item_amount: giảm tối đa value cho các món item_ids · free_item: tặng 1 món item_ids (giá gốc)
+--   bogo: mua 1 tặng 1 trong item_ids, Thứ 2–Thứ 5
+create or replace function private.voucher_discount(v public.vouchers, p_lines jsonb, p_subtotal int)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare d int := 0; n int; dow int;
+begin
+  case v.kind
+  when 'percent' then
+    d := round(p_subtotal * v.value / 100.0);
+  when 'upsize' then
+    if not exists (select 1 from jsonb_array_elements(p_lines) l where l->>'size' = 'L') then
+      return jsonb_build_object('discount', 0, 'reason', 'Cần có ít nhất 1 ly size L');
+    end if;
+    d := v.value;
+  when 'topping' then
+    select max((tp->>'price')::int) into d
+    from jsonb_array_elements(p_lines) l
+    join menu_items m on m.id = l->>'itemId'
+    cross join lateral jsonb_array_elements(coalesce(m.options->'toppings', '[]'::jsonb)) tp
+    where coalesce(l->'toppings', '[]'::jsonb) ? (tp->>'name');
+    if coalesce(d, 0) = 0 then
+      return jsonb_build_object('discount', 0, 'reason', 'Cần chọn ít nhất 1 topping có phí');
+    end if;
+  when 'item_amount' then
+    select coalesce(sum((l->>'lineTotal')::int), 0) into n
+    from jsonb_array_elements(p_lines) l where (l->>'itemId') = any(v.item_ids);
+    if n = 0 then return jsonb_build_object('discount', 0, 'reason', 'Giỏ hàng chưa có món áp dụng'); end if;
+    d := least(v.value, n);
+  when 'free_item' then
+    select min(m.price) into d
+    from jsonb_array_elements(p_lines) l join menu_items m on m.id = l->>'itemId'
+    where m.id = any(v.item_ids);
+    if d is null then return jsonb_build_object('discount', 0, 'reason', 'Giỏ hàng chưa có món áp dụng'); end if;
+  when 'bogo' then
+    dow := extract(isodow from now() at time zone 'Asia/Ho_Chi_Minh');
+    if dow > 4 then return jsonb_build_object('discount', 0, 'reason', 'Chỉ áp dụng Thứ 2 – Thứ 5'); end if;
+    select coalesce(sum((l->>'qty')::int), 0), min((l->>'unitPrice')::int) into n, d
+    from jsonb_array_elements(p_lines) l where (l->>'itemId') = any(v.item_ids);
+    if n < 2 then return jsonb_build_object('discount', 0, 'reason', 'Cần ít nhất 2 ly món áp dụng'); end if;
+  else
+    d := 0;
+  end case;
+  return jsonb_build_object('discount', greatest(0, least(coalesce(d, 0), p_subtotal)), 'reason', null);
+end $$;
+
+-- Xem trước: mỗi voucher của khách giảm được bao nhiêu cho giỏ hàng hiện tại
+create or replace function public.preview_vouchers(p_phone text, p_items jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_priced jsonb; v_out jsonb := '[]'::jsonb; r record; dd jsonb;
+begin
+  perform private.check_phone(p_phone);
+  begin
+    v_priced := private.price_items(p_items);
+  exception when others then
+    v_priced := jsonb_build_object('lines', '[]'::jsonb, 'subtotal', 0);
+  end;
+  for r in
+    select mv.id, mv.code, mv.expires_at, v
+    from member_vouchers mv join vouchers v on v.id = mv.voucher_id
+    where mv.member_phone = p_phone and not mv.used and mv.expires_at > now()
+    order by mv.created_at
+  loop
+    dd := private.voucher_discount(r.v, v_priced->'lines', (v_priced->>'subtotal')::int);
+    v_out := v_out || jsonb_build_array(jsonb_build_object(
+      'id', r.id, 'code', r.code, 'expires_at', r.expires_at,
+      'title', (r.v).title, 'description', (r.v).description, 'color', (r.v).color,
+      'discount', (dd->>'discount')::int, 'reason', dd->>'reason'));
+  end loop;
+  return v_out;
+end $$;
+
+-- Đặt món (có thể kèm 1 voucher)
+drop function if exists public.place_order(text, jsonb, jsonb);
+create or replace function public.place_order(p_phone text, p_items jsonb, p_sub jsonb default null, p_voucher uuid default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_active text; v_priced jsonb; v_subtotal int; v_disc int := 0; v_title text; v_mv_id uuid;
+  v_mv member_vouchers; v_v vouchers; dd jsonb; v_count int; v_code text; v_order orders;
+begin
+  perform private.check_phone(p_phone);
+  if not exists (select 1 from members where phone = p_phone) then
+    raise exception 'Không tìm thấy thành viên, vui lòng đăng nhập lại';
+  end if;
+
+  perform private.expire_stale();
+  perform pg_advisory_xact_lock(hashtext('moc-place-order'));
+
+  -- Mỗi khách chỉ 1 đơn đang chờ
+  select o.code into v_active from orders o
+  where o.member_phone = p_phone and o.status in ('pending','confirmed','making') limit 1;
+  if v_active is not null then
+    raise exception 'Bạn đang có đơn #% chưa xong. Đưa mã QR cho nhân viên hoặc chờ đơn xong nhé.', v_active;
+  end if;
+
+  v_priced := private.price_items(p_items);
+  v_subtotal := (v_priced->>'subtotal')::int;
+
+  if p_voucher is not null then
+    select * into v_mv from member_vouchers where id = p_voucher and member_phone = p_phone for update;
+    if not found or v_mv.used or v_mv.expires_at <= now() then
+      raise exception 'Ưu đãi này không còn dùng được';
+    end if;
+    select * into v_v from vouchers where id = v_mv.voucher_id;
+    dd := private.voucher_discount(v_v, v_priced->'lines', v_subtotal);
+    v_disc := (dd->>'discount')::int;
+    if v_disc <= 0 then
+      raise exception 'Không áp dụng được ưu đãi: %', coalesce(dd->>'reason', 'không đủ điều kiện');
+    end if;
+    v_title := v_v.title;
+    v_mv_id := v_mv.id;
+    update member_vouchers set used = true where id = v_mv.id;
+  end if;
+
+  -- Số đơn trong ngày (giờ VN): A1…A99, B1…
+  select count(*) into v_count from orders
+  where created_at >= (date_trunc('day', now() at time zone 'Asia/Ho_Chi_Minh') at time zone 'Asia/Ho_Chi_Minh');
+  v_code := substr('ABCDEFGH', (v_count / 99) % 8 + 1, 1) || ((v_count % 99) + 1)::text;
+
+  insert into orders(code, member_phone, items, subtotal, discount, total, voucher_id, voucher_title, status, push_subscription)
+  values (v_code, p_phone, v_priced->'lines', v_subtotal, v_disc, v_subtotal - v_disc, v_mv_id, v_title, 'pending',
+          case when jsonb_typeof(p_sub) = 'object' and p_sub ? 'endpoint' then p_sub end)
+  returning * into v_order;
+  return private.order_json(v_order);
+end $$;
+
+-- Đơn bị huỷ / hết hạn → trả lại voucher cho khách
+create or replace function private.on_order_cancel() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.status = 'cancelled' and old.status is distinct from 'cancelled' and new.voucher_id is not null then
+    update public.member_vouchers set used = false where id = new.voucher_id;
+  end if;
+  return new;
+end $$;
+drop trigger if exists orders_cancel_release on public.orders;
+create trigger orders_cancel_release after update of status on public.orders
+for each row execute function private.on_order_cancel();
+
+grant execute on function public.preview_vouchers(text, jsonb), public.place_order(text, jsonb, jsonb, uuid) to anon, authenticated;
 
 -- =========================================================
 -- Web Push: khi đơn chuyển "Đã xong" → gọi Edge Function send-push

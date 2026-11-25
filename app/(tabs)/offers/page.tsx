@@ -57,7 +57,7 @@ export default function OffersPage() {
           <>
             {mine.map((mv) => mv.vouchers && <VoucherCard key={mv.id} v={mv.vouchers} code={mv.code} expires={mv.expires_at} />)}
             {mine.length === 0 && <p className="py-10 text-center text-muted">Chưa có voucher. Chuyển sang “Đổi ưu đãi” nhé!</p>}
-            {mine.length > 0 && <p className="pt-2 text-center text-xs text-muted">Đọc mã voucher cho nhân viên khi thanh toán tại quầy.</p>}
+            {mine.length > 0 && <p className="pt-2 text-center text-xs text-muted">Chọn voucher trong giỏ hàng khi đặt món — giá sẽ tự trừ.</p>}
           </>
         )}
         {tab === "redeem" && catalog.map((v) => {

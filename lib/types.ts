@@ -56,6 +56,9 @@ export type Order = {
   code: string;
   member_phone: string;
   items: OrderLine[];
+  subtotal?: number | null;
+  discount?: number;
+  voucher_title?: string | null;
   total: number;
   status: OrderStatus;
   created_at: string;
