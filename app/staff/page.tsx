@@ -166,19 +166,18 @@ function BoardTab({ api }: { api: StaffApi }) {
     const scanned = orders.filter((o) => o.confirmed_at);
     const byScan = (a: Order, b: Order) => a.confirmed_at!.localeCompare(b.confirmed_at!);
     return {
-      confirmed: scanned.filter((o) => o.status === "confirmed").sort(byScan),
-      making: scanned.filter((o) => o.status === "making").sort(byScan),
+      active: scanned.filter((o) => o.status === "confirmed" || o.status === "making").sort(byScan),
       done: scanned.filter((o) => o.status === "done").sort((a, b) => (b.done_at ?? "").localeCompare(a.done_at ?? "")).slice(0, 8),
     };
   }, [orders]);
-  const cols: ["confirmed" | "making" | "done", string][] = [["confirmed", "Hàng chờ · ai quét trước làm trước"], ["making", "Đang pha"], ["done", "Đã xong (gần đây)"]];
+  const cols: ["active" | "done", string][] = [["active", "Đơn"], ["done", "Đã xong"]];
   return (
     <div className="space-y-6">
       {cols.map(([k, label]) => (
         <section key={k}>
           <h3 className="mb-2 font-bold text-bean-dark">{label} <span className="text-muted">({groups[k].length})</span></h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {groups[k].map((o, i) => <OrderCard key={o.id} order={o} api={api} place={k === "confirmed" ? i + 1 : undefined} />)}
+            {groups[k].map((o, i) => <OrderCard key={o.id} order={o} api={api} place={k === "active" ? i + 1 : undefined} />)}
             {groups[k].length === 0 && <p className="text-sm text-muted">—</p>}
           </div>
         </section>
