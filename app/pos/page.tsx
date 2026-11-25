@@ -94,6 +94,10 @@ function Pos() {
   const toast = useToast();
   const { items: menu } = useMenu();
   const { orders: today, put } = useTodayOrders();
+  // Đơn khách đặt trên app KHÔNG tự hiện ở quầy: chỉ mở được bằng cách quét mã của khách.
+  // Danh sách "Đơn hôm nay" chỉ gồm đơn đã nhận (xác nhận) tại quầy.
+  const received = useMemo(() => today.filter((o) => o.confirmed_at)
+    .sort((a, b) => (b.confirmed_at ?? "").localeCompare(a.confirmed_at ?? "")), [today]);
   const [panel, setPanel] = useState<Panel>({ kind: "idle" });
   const panelRef = useRef(panel);
   panelRef.current = panel;
@@ -304,7 +308,7 @@ function Pos() {
         {(["work", "list"] as const).map((v) => (
           <button key={v} onClick={() => setView(v)}
             className={`h-10 flex-1 rounded-full text-sm font-bold ${view === v ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>
-            {v === "work" ? "Xử lý đơn" : `Đơn hôm nay (${today.length})`}
+            {v === "work" ? "Xử lý đơn" : `Đơn hôm nay (${received.length})`}
           </button>
         ))}
       </div>
@@ -378,7 +382,7 @@ function Pos() {
       </section>
 
       {/* ------------------------- Cột phải: đơn hôm nay ------------------------- */}
-      <TodayList hidden={view !== "list"} orders={today} current={panel.kind === "order" ? panel.order.id : null} onOpen={openOrder}
+      <TodayList hidden={view !== "list"} orders={received} current={panel.kind === "order" ? panel.order.id : null} onOpen={openOrder}
         autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} />
 
       {camera && <Scanner onResult={onCamera} onClose={() => setCamera(false)} title="Quét mã QR trên app của khách" />}
@@ -773,7 +777,7 @@ function TodayList({ hidden, orders, current, onOpen, autoPrint, onToggleAutoPri
             </button>
           </li>
         ))}
-        {!shown.length && <li className="py-10 text-center text-sm text-muted">Chưa có đơn</li>}
+        {!shown.length && <li className="py-10 text-center text-sm text-muted">Chưa có đơn. Đơn khách đặt trên app chỉ hiện ở đây sau khi quét mã và xác nhận.</li>}
       </ul>
     </aside>
   );
