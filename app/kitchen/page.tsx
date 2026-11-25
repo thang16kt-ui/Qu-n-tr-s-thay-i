@@ -142,29 +142,29 @@ function Kitchen() {
   const making = queue.filter((o) => o.status === "making").length;
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col lg:h-full lg:flex-row">
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-4 px-5 pb-1 pt-4">
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-3 lg:flex-nowrap lg:gap-4 lg:px-5 lg:pt-4">
           <h1 className="text-2xl font-bold text-bean-dark">Cần pha</h1>
           <span className="rounded-full bg-paper px-3 py-1 text-sm font-bold text-bean-dark">{queue.length - making} chờ · {making} đang pha</span>
-          <span className="text-sm text-muted">Đơn cũ nhất bên trái</span>
+          <span className="hidden text-sm text-muted lg:inline">Đơn cũ nhất bên trái</span>
           {!sound && (
             <button onClick={() => { unlockAudio(); bell(); setSound(true); }}
-              className="ml-auto animate-pulse rounded-full bg-mustard px-4 py-2 text-sm font-bold text-mustard-ink">🔔 Chạm để bật âm báo</button>
+              className="w-full animate-pulse whitespace-nowrap rounded-full bg-mustard px-4 py-2 text-sm font-bold text-mustard-ink lg:ml-auto lg:w-auto">🔔 Chạm để bật âm báo</button>
           )}
         </div>
-        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-5 pt-3">
+        <div className="flex flex-col gap-3 p-3 pt-2 lg:min-h-0 lg:flex-1 lg:flex-row lg:gap-4 lg:overflow-x-auto lg:p-5 lg:pt-3">
           {queue.map((o) => {
             const wait = now - new Date(o.confirmed_at ?? o.created_at).getTime();
             const late = wait > LATE_MS;
             const isMaking = o.status === "making";
             return (
               <article key={o.id}
-                className={`card flex h-full w-[300px] shrink-0 flex-col overflow-hidden ${fresh[o.id] ? "ring-4 ring-mustard" : ""}`}>
+                className={`card flex w-full shrink-0 flex-col overflow-hidden lg:h-full lg:w-[300px] ${fresh[o.id] ? "ring-4 ring-mustard" : ""}`}>
                 <header className={`flex items-center justify-between px-4 py-3 ${late ? "bg-[#E8780F] text-white" : "bg-bean text-cream"}`}>
                   <div>
                     <div className="text-5xl font-bold leading-none tracking-tight">#{o.code}</div>
-                    <div className="mt-1 text-xs font-semibold opacity-80">•••• {o.member_phone.slice(-4)}{fresh[o.id] ? " · MỚI" : ""}</div>
+                    <div className="mt-1 text-xs font-semibold opacity-80">{o.member_phone ? `•••• ${o.member_phone.slice(-4)}` : "Khách tại quầy"}{fresh[o.id] ? " · MỚI" : ""}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-bold tabular-nums">{mmss(wait)}</div>
@@ -173,7 +173,7 @@ function Kitchen() {
                     </div>
                   </div>
                 </header>
-                <ul className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-bean-dark">
+                <ul className="space-y-4 p-4 text-bean-dark lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                   {o.items.map((l, i) => <li key={i}><LineText line={l} large /></li>)}
                 </ul>
                 <div className="space-y-2 border-t border-line p-3">
@@ -192,7 +192,7 @@ function Kitchen() {
             );
           })}
           {!queue.length && (
-            <div className="grid flex-1 place-items-center text-center">
+            <div className="grid flex-1 place-items-center py-10 text-center lg:py-0">
               <div>
                 <div className="text-6xl">☕</div>
                 <div className="mt-4 text-2xl font-bold text-bean-dark">Chưa có đơn cần pha</div>
@@ -203,12 +203,12 @@ function Kitchen() {
         </div>
       </section>
 
-      <aside className="flex w-[290px] shrink-0 flex-col border-l border-line bg-paper">
+      <aside className="flex w-full shrink-0 flex-col border-t border-line bg-paper lg:w-[290px] lg:border-l lg:border-t-0">
         <div className="border-b border-line px-4 py-4">
           <div className="text-xl font-bold text-done">Đã xong</div>
           <div className="text-xs text-muted">Tự ẩn sau 10 phút</div>
         </div>
-        <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        <ul className="space-y-3 p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {done.map((o) => {
             const left = undo[o.id] ? undo[o.id] - now : 0;
             return (

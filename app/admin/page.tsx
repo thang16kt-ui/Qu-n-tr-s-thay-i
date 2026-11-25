@@ -25,17 +25,17 @@ type Tab = "menu" | "demo" | "push";
 function Admin() {
   const [tab, setTab] = useState<Tab>("menu");
   return (
-    <div className="flex h-full">
-      <nav className="w-56 shrink-0 space-y-1 border-r border-line bg-paper p-3">
+    <div className="flex flex-col lg:h-full lg:flex-row">
+      <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-line bg-paper p-2 lg:block lg:w-56 lg:space-y-1 lg:overflow-visible lg:border-b-0 lg:border-r lg:p-3">
         {([["menu", "Thực đơn", "Thêm, sửa, giá, ảnh, hết hàng"], ["demo", "Chế độ demo", "Đơn giả lập, dữ liệu mẫu"], ["push", "Thông báo đẩy", "Kiểm tra VAPID / Web Push"]] as const).map(([k, t, d]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`w-full rounded-2xl px-4 py-3 text-left ${tab === k ? "bg-bean text-cream" : "text-bean-dark hover:bg-cream-2"}`}>
+            className={`shrink-0 rounded-2xl px-4 py-2 text-left lg:w-full lg:py-3 ${tab === k ? "bg-bean text-cream" : "text-bean-dark hover:bg-cream-2"}`}>
             <div className="font-bold">{t}</div>
-            <div className={`text-xs ${tab === k ? "text-cream/70" : "text-muted"}`}>{d}</div>
+            <div className={`hidden text-xs lg:block ${tab === k ? "text-cream/70" : "text-muted"}`}>{d}</div>
           </button>
         ))}
       </nav>
-      <div className="min-w-0 flex-1 overflow-y-auto p-6">
+      <div className="min-w-0 flex-1 p-3 lg:overflow-y-auto lg:p-6">
         {tab === "menu" && <MenuAdmin />}
         {tab === "demo" && <DemoAdmin />}
         {tab === "push" && <PushAdmin />}
@@ -143,35 +143,35 @@ function MenuAdmin() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-bold text-bean-dark">Thực đơn</h1>
         <span className="text-sm text-muted">{items.length} món · {soldOut} hết hàng</span>
-        <button onClick={() => setEdit(toForm(undefined, cat === "all" ? "Cà phê" : cat))} className="btn-primary ml-auto flex h-12 items-center gap-2 px-5">
+        <button onClick={() => setEdit(toForm(undefined, cat === "all" ? "Cà phê" : cat))} className="btn-primary ml-auto flex h-12 shrink-0 items-center gap-2 px-4 lg:px-5">
           <IPlus size={20} /> Thêm món
         </button>
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="-mx-3 mt-4 flex gap-2 overflow-x-auto px-3 lg:mx-0 lg:px-0">
         {(["all", ...CATEGORIES] as const).map((c) => (
-          <button key={c} onClick={() => setCat(c)} className={`h-10 rounded-full px-4 font-semibold ${cat === c ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>
+          <button key={c} onClick={() => setCat(c)} className={`h-10 shrink-0 whitespace-nowrap rounded-full px-4 font-semibold ${cat === c ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>
             {c === "all" ? "Tất cả" : c}
           </button>
         ))}
       </div>
       <ul className="card mt-4 divide-y divide-line">
         {list.map((it) => (
-          <li key={it.id} className="flex items-center gap-4 px-4 py-3">
+          <li key={it.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 lg:flex-nowrap lg:gap-4 lg:px-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={asset(it.image)} alt="" className={`h-16 w-16 rounded-2xl bg-cream-2 object-cover ${it.available ? "" : "opacity-50 grayscale"}`} />
             <div className="min-w-0 flex-1">
               <div className="font-bold text-bean-dark">{it.name}</div>
               <div className="truncate text-sm text-muted">{it.category} · {it.description}</div>
             </div>
-            <div className="w-24 text-right text-lg font-bold tabular-nums text-bean">{vnd(it.price)}</div>
-            <div className="flex w-32 items-center justify-end gap-2">
+            <div className="text-right text-lg font-bold tabular-nums text-bean lg:w-24">{vnd(it.price)}</div>
+            <div className="ml-[76px] flex items-center gap-2 lg:ml-0 lg:w-32 lg:justify-end">
               <span className={`text-xs font-bold ${it.available ? "text-done" : "text-caramel"}`}>{it.available ? "Còn hàng" : "Hết hàng"}</span>
               <Toggle on={it.available} onClick={() => toggle(it)} label="Còn hàng" />
             </div>
-            <button onClick={() => setEdit(toForm(it))} className="grid h-11 w-11 place-items-center rounded-full bg-cream-2 text-bean" aria-label="Sửa"><IEdit size={20} /></button>
+            <button onClick={() => setEdit(toForm(it))} className="ml-auto grid h-11 w-11 lg:ml-0 place-items-center rounded-full bg-cream-2 text-bean" aria-label="Sửa"><IEdit size={20} /></button>
             <button onClick={() => remove(it)} className="h-11 rounded-full px-3 text-sm font-semibold text-danger">Xoá</button>
           </li>
         ))}
@@ -212,16 +212,16 @@ function MenuForm({ form, onClose }: { form: Form; onClose: () => void }) {
           <button disabled={busy || !f.name.trim() || !f.price} onClick={save} className="btn-primary h-14 flex-1 text-lg">Lưu món</button>
         </div>
       }>
-      <div className="grid grid-cols-[180px_1fr] gap-6">
-        <div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr] sm:gap-6">
+        <div className="flex items-center gap-3 sm:block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={asset(f.image || null)} alt="" className="aspect-square w-full rounded-3xl bg-cream-2 object-cover" />
-          <label className="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-2xl bg-cream-2 text-sm font-bold text-bean">
+          <img src={asset(f.image || null)} alt="" className="aspect-square w-24 shrink-0 rounded-2xl bg-cream-2 object-cover sm:w-full sm:rounded-3xl" />
+          <label className="flex h-11 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-cream-2 text-sm font-bold text-bean sm:mt-3">
             Đổi ảnh…
             <input type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(e.target.files?.[0])} />
           </label>
           <input value={f.image.startsWith("data:") ? "" : f.image} onChange={(e) => set("image", e.target.value)} placeholder="hoặc dán link ảnh"
-            className="mt-2 h-10 w-full rounded-xl border-2 border-line bg-paper px-3 text-xs outline-none focus:border-caramel" />
+            className="mt-2 hidden h-10 w-full rounded-xl border-2 border-line bg-paper px-3 text-xs outline-none focus:border-caramel sm:block" />
         </div>
         <div className="space-y-3">
           <input className={input} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Tên món" />
@@ -275,7 +275,7 @@ function DemoAdmin() {
   const router = useRouter();
   const [sim, setSim] = useState<Order | null>(null);
   const [busy, setBusy] = useState(false);
-  const qr = sim ? buildQR(sim.member_phone, sim.ref) : "";
+  const qr = sim ? buildQR(sim.member_phone ?? "", sim.ref) : "";
 
   async function simulate() {
     setBusy(true);
@@ -294,16 +294,16 @@ function DemoAdmin() {
   }
 
   return (
-    <div className="mx-auto grid max-w-5xl grid-cols-2 gap-5">
-      <section className="card col-span-2 p-6 xl:col-span-1">
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+      <section className="card p-4 lg:col-span-2 lg:p-6 xl:col-span-1">
         <h2 className="text-xl font-bold text-bean-dark">Giả lập khách đặt đơn</h2>
         <p className="mt-1 text-sm text-muted">Tạo 1 đơn ngẫu nhiên (1–3 món) như khách vừa đặt trên app, cho một SĐT mẫu đang không có đơn. Đơn ở trạng thái “Chờ đến quầy”.</p>
         <button disabled={busy} onClick={simulate} className="btn-primary mt-4 h-14 w-full text-lg">🎲 Giả lập khách đặt đơn</button>
         {sim && (
-          <div className="animate-pop mt-5 flex gap-5 rounded-3xl bg-cream p-4">
-            <div className="shrink-0 rounded-2xl bg-white p-2"><QRCode value={qr} size={170} /></div>
+          <div className="animate-pop mt-5 flex flex-col gap-4 rounded-3xl bg-cream p-4 sm:flex-row sm:gap-5">
+            <div className="mx-auto shrink-0 rounded-2xl bg-white p-2 sm:mx-0"><QRCode value={qr} size={170} /></div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm text-muted">Mã tạm · SĐT •••• {sim.member_phone.slice(-4)}</div>
+              <div className="text-sm text-muted">Mã tạm · SĐT •••• {sim.member_phone?.slice(-4)}</div>
               <div className="text-3xl font-bold text-bean-dark">{sim.ref}</div>
               <ul className="mt-2 space-y-1">{sim.items.map((l, i) => <li key={i}><LineText line={l} /></li>)}</ul>
               <div className="mt-2 font-bold">{vnd(sim.total)}</div>
@@ -318,12 +318,12 @@ function DemoAdmin() {
         <p className="mt-4 text-xs text-muted">Mẹo: quét mã QR trên màn hình này bằng máy quét hoặc camera của máy POS khác để thử đúng quy trình.</p>
       </section>
 
-      <section className="card col-span-2 p-6 xl:col-span-1">
+      <section className="card p-4 lg:col-span-2 lg:p-6 xl:col-span-1">
         <h2 className="text-xl font-bold text-bean-dark">Đặt lại dữ liệu mẫu</h2>
         <p className="mt-1 text-sm text-muted">Đưa cửa hàng về trạng thái demo: thực đơn mặc định, 6 thành viên mẫu có điểm/hạng khác nhau và 7 đơn hôm nay ở đủ trạng thái (chờ quầy, chờ pha, đang pha, xong, huỷ).</p>
         <button disabled={busy} onClick={reset} className="mt-4 h-14 w-full rounded-full border-2 border-caramel text-lg font-bold text-caramel">↺ Đặt lại dữ liệu mẫu</button>
         <div className="mt-6 text-sm font-semibold text-bean-dark">SĐT mẫu (đăng nhập app khách hoặc nhập tay ở POS)</div>
-        <ul className="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <ul className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {SAMPLE.map(([p, n]) => (
             <li key={p} className="rounded-xl bg-cream px-3 py-2"><b className="tabular-nums">{p}</b> · {n}</li>
           ))}
@@ -369,7 +369,7 @@ function PushAdmin() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <section className="card p-6">
+      <section className="card p-4 lg:p-6">
         <h2 className="text-xl font-bold text-bean-dark">Kiểm tra thông báo “Đơn đã xong”</h2>
         <p className="mt-1 text-sm text-muted">Khi bếp bấm “Xác nhận xong”, route <code>/api/notify</code> gửi Web Push tới điện thoại khách (khách phải bật thông báo trong app).</p>
         {err && <p className="mt-3 rounded-2xl bg-danger-soft p-3 text-sm text-danger">{err}</p>}
@@ -382,7 +382,7 @@ function PushAdmin() {
           ))}
         </ul>
       </section>
-      <section className="card p-6">
+      <section className="card p-4 lg:p-6">
         <h2 className="text-xl font-bold text-bean-dark">Tạo cặp khoá VAPID mới</h2>
         <p className="mt-1 text-sm text-muted">
           Chỉ cần nếu bạn CHƯA có khoá. Khoá được tạo ngay trên máy này, không gửi đi đâu. Dán 2 giá trị vào Vercel → Settings → Environment Variables rồi Redeploy.

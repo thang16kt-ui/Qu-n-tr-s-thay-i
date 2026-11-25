@@ -13,6 +13,8 @@
 alter table orders add column if not exists payment_method text;   -- 'cash' | 'transfer'
 alter table orders add column if not exists paid_at timestamptz;
 alter table orders add column if not exists source text not null default 'app';  -- 'app' | 'counter' | 'demo'
+-- Đơn bán tại quầy cho khách vãng lai (không có app) không có số điện thoại
+alter table orders alter column member_phone drop not null;
 create index if not exists orders_confirmed_idx on orders(confirmed_at);
 create index if not exists orders_created_idx on orders(created_at);
 
@@ -120,13 +122,14 @@ begin
     payment_method = p_method
   where id = p_order returning * into o;
 
-  if not exists (select 1 from point_log where order_id = p_order and points > 0) then
+  if o.member_phone is not null and not exists (select 1 from point_log where order_id = p_order and points > 0) then
     pts := floor(o.total / 10000.0);
     if pts > 0 then perform add_points(o.member_phone, o.id, pts, 'Đơn #' || o.code); end if;
   end if;
   select * into m from members where phone = o.member_phone;
 
-  return jsonb_build_object('order', private.order_json(o), 'points', pts, 'member', to_jsonb(m));
+  return jsonb_build_object('order', private.order_json(o), 'points', pts,
+    'member', case when m.phone is null then null else to_jsonb(m) end);
 end $$;
 
 -- POS: huỷ đơn (chưa xong). Đơn đã cộng điểm thì trừ lại điểm đó.
@@ -184,6 +187,30 @@ begin
   n.items := v_priced->'lines'; n.subtotal := v_sub; n.discount := v_disc; n.total := v_sub - v_disc;
   return n;
 end $$;
+
+-- POS: "Bán tại quầy" — chọn món + thu tiền + xác nhận trong MỘT bước.
+--   p_phone để trống = khách vãng lai (không tích điểm); có SĐT = cộng điểm cho thành viên.
+create or replace function public.staff_sell(p_pin text, p_phone text, p_items jsonb, p_method text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_phone text := nullif(trim(coalesce(p_phone, '')), ''); v_priced jsonb; v_sub int; o orders;
+begin
+  perform private.check_pin(p_pin);
+  if p_method is null or p_method not in ('cash', 'transfer') then
+    raise exception 'Chọn hình thức thanh toán';
+  end if;
+  if v_phone is not null then
+    perform private.check_phone(v_phone);
+    insert into members(phone) values (v_phone) on conflict do nothing;
+  end if;
+  v_priced := private.price_items(p_items);
+  v_sub := (v_priced->>'subtotal')::int;
+  insert into orders(code, ref, member_phone, items, subtotal, discount, total, status, source, push_subscription)
+  values (null, private.new_ref(), v_phone, v_priced->'lines', v_sub, 0, v_sub, 'pending', 'counter',
+          case when v_phone is not null then private.latest_sub(v_phone) end)
+  returning * into o;
+  return public.staff_confirm(p_pin, o.id, p_method);
+end $$;
+grant execute on function public.staff_sell(text, text, jsonb, text) to anon, authenticated;
 
 -- POS: xem trước đơn sau khi thêm / bớt món (chưa lưu — app khách chưa đổi gì).
 -- Chỉ khi bấm "Xác nhận" (staff_confirm kèm p_items) món mới mới được ghi vào đơn.

@@ -32,7 +32,7 @@ export const api = {
 
 export type ScanResult = { member: Member; order: Order | null; pendingOrder?: Order | null; orderCode: string | null };
 export type StatusResult = { order: Order; points: number; hadSubscription: boolean };
-export type ConfirmResult = { order: Order; points: number; member: Member };
+export type ConfirmResult = { order: Order; points: number; member: Member | null };
 export type NotifyResult = { ok: boolean; sent: boolean; reason?: string };
 
 export const staffApi = (pin: string) => ({
@@ -46,6 +46,9 @@ export const staffApi = (pin: string) => ({
     rpc<ConfirmResult>("staff_confirm", { p_pin: pin, p_order: orderId, p_method: method, ...(items ? { p_items: items } : {}) }),
   cancel: (orderId: string) => rpc<{ order: Order; points: number }>("staff_cancel", { p_pin: pin, p_order: orderId }),
   createOrder: (phone: string, items: OrderInput[]) => rpc<Order>("staff_create_order", { p_pin: pin, p_phone: phone, p_items: items }),
+  /** Bán tại quầy: tạo + thu tiền + xác nhận một lần. phone = null → khách vãng lai */
+  sell: (phone: string | null, items: OrderInput[], method: "cash" | "transfer") =>
+    rpc<ConfirmResult>("staff_sell", { p_pin: pin, p_phone: phone, p_items: items, p_method: method }),
   /** Xem trước đơn sau khi thêm/bớt món — CHƯA lưu, app khách chưa đổi */
   previewOrder: (orderId: string, items: OrderInput[]) => rpc<Order>("staff_preview_order", { p_pin: pin, p_order: orderId, p_items: items }),
   saveMenuItem: (item: Partial<MenuItem>) => rpc<MenuItem>("staff_save_menu_item", { p_pin: pin, p_item: item }),

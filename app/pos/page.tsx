@@ -74,9 +74,9 @@ function useTodayOrders() {
 type Panel =
   | { kind: "idle" }
   | { kind: "member"; member: Member; pending: Order | null }
-  | { kind: "order"; member: Member; order: Order; notice?: { tone: "warn" | "error" | "info"; text: string }; paid?: { points: number } }
-  | { kind: "create"; member: Member }
-  | { kind: "edit"; member: Member; order: Order }
+  | { kind: "order"; member: Member | null; order: Order; notice?: { tone: "warn" | "error" | "info"; text: string }; paid?: { points: number } }
+  | { kind: "sell"; member: Member | null }
+  | { kind: "edit"; member: Member | null; order: Order }
   | { kind: "points"; member: Member };
 
 type Flash = { tone: "ok" | "err"; text: string; n: number };
@@ -95,6 +95,11 @@ function Pos() {
   const { items: menu } = useMenu();
   const { orders: today, put } = useTodayOrders();
   const [panel, setPanel] = useState<Panel>({ kind: "idle" });
+  const panelRef = useRef(panel);
+  panelRef.current = panel;
+  // Điện thoại: xem một cột mỗi lúc — "Quầy" hoặc "Đơn hôm nay"
+  const [view, setView] = useState<"work" | "list">("work");
+  useEffect(() => { setView("work"); }, [panel]);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [camera, setCamera] = useState(false);
   const [scan, setScan] = useState("");
@@ -156,6 +161,12 @@ function Pos() {
     setBusy(true);
     try {
       const r = await api.scan(phone, code);
+      // Đang bán tại quầy mà quét mã thành viên → gắn khách vào đơn để tích điểm
+      if (!code && panelRef.current.kind === "sell") {
+        beep(); show("ok", `Tích điểm cho •••• ${phone.slice(-4)}`);
+        setPanel({ kind: "sell", member: r.member });
+        return;
+      }
       if (code) {
         if (!r.order) {
           buzz(); show("err", `Không tìm thấy đơn ${code}`);
@@ -225,6 +236,7 @@ function Pos() {
   }, [today]);
 
   async function openOrder(o: Order) {
+    if (!o.member_phone) { setPanel({ kind: "order", member: null, order: o }); return; }
     try {
       const r = await api.scan(o.member_phone, o.code ?? o.ref ?? null);
       setPanel({ kind: "order", member: r.member, order: r.order ?? o });
@@ -246,6 +258,19 @@ function Pos() {
       buzz(); show("err", msg);
       if (/xác nhận|huỷ/.test(msg)) openOrder(order);
     }
+    setBusy(false);
+  }
+
+  async function sell(member: Member | null, lines: OrderLine[], method: "cash" | "transfer") {
+    setBusy(true);
+    try {
+      const r = await api.sell(member?.phone ?? null, lines.map(toInput), method);
+      beep();
+      show("ok", `Đã thu ${vnd(r.order.total)} · Số đơn #${r.order.code}`);
+      put(r.order);
+      setPanel({ kind: "order", member: r.member?.phone ? r.member : null, order: r.order, paid: { points: r.points } });
+      if (autoPrint) setPrint({ order: r.order, n: Date.now() });
+    } catch (e) { buzz(); show("err", (e as Error).message); }
     setBusy(false);
   }
 
@@ -274,12 +299,20 @@ function Pos() {
   const ring = flash ? (flash.tone === "ok" ? "border-done" : "border-caramel") : "border-line";
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col lg:h-full lg:flex-row">
+      <div className="sticky top-[92px] z-20 flex gap-1 border-b border-line bg-cream-2 px-3 py-2 lg:hidden">
+        {(["work", "list"] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)}
+            className={`h-10 flex-1 rounded-full text-sm font-bold ${view === v ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>
+            {v === "work" ? "Xử lý đơn" : `Đơn hôm nay (${today.length})`}
+          </button>
+        ))}
+      </div>
       {/* ------------------------- Cột trái: quét + xử lý ------------------------- */}
-      <section className="relative flex min-w-0 flex-1 flex-col">
+      <section className={`relative min-w-0 flex-1 flex-col ${view === "work" ? "flex" : "hidden lg:flex"}`}>
         {flash && <div key={flash.n} className={`pointer-events-none absolute inset-0 z-10 ${flash.tone === "ok" ? "flash-green" : "flash-red"}`} />}
-        <div className="flex items-center gap-3 p-4 pb-2">
-          <label className={`flex h-14 flex-1 items-center gap-3 rounded-2xl border-2 bg-paper px-4 transition-colors ${ring}`}>
+        <div className="flex flex-wrap items-center gap-2 p-3 pb-1 lg:flex-nowrap lg:gap-3 lg:p-4 lg:pb-2">
+          <label className={`flex h-12 w-full items-center gap-3 rounded-2xl lg:h-14 lg:w-auto lg:flex-1 border-2 bg-paper px-4 transition-colors ${ring}`}>
             <span className={`h-3 w-3 shrink-0 rounded-full ${busy ? "bg-mustard" : "animate-pulse bg-done"}`} />
             <input
               ref={scanRef} value={scan} inputMode="none" autoComplete="off" autoCorrect="off" spellCheck={false}
@@ -290,16 +323,19 @@ function Pos() {
               placeholder="Sẵn sàng quét — máy quét 2D tự nhập mã và Enter"
               className="min-w-0 flex-1 bg-transparent font-mono text-base outline-none placeholder:font-sans placeholder:text-muted" />
           </label>
-          <button onClick={() => setCamera(true)} className="btn-primary flex h-14 shrink-0 items-center gap-2 px-5">
-            <IQR size={22} /> Quét bằng camera
+          <button onClick={() => setPanel({ kind: "sell", member: null })} className="flex h-12 flex-1 items-center justify-center whitespace-nowrap rounded-2xl bg-done px-3 text-sm font-bold text-white lg:h-14 lg:flex-none lg:px-5 lg:text-base">
+            ＋ Bán tại quầy
           </button>
-          <form onSubmit={lookupManual} className="flex h-14 shrink-0 items-center rounded-2xl border-2 border-line bg-paper pl-3">
+          <button onClick={() => setCamera(true)} className="btn-primary flex h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap px-3 text-sm lg:h-14 lg:flex-none lg:px-5 lg:text-base">
+            <IQR size={22} /> <span className="lg:hidden">Camera</span><span className="hidden lg:inline">Quét bằng camera</span>
+          </button>
+          <form onSubmit={lookupManual} className="flex h-12 w-full items-center rounded-2xl border-2 border-line bg-paper pl-3 lg:h-14 lg:w-auto lg:shrink-0">
             <input value={manual} onChange={(e) => setManual(e.target.value)} inputMode="numeric" placeholder="Nhập SĐT tay"
-              className="w-36 bg-transparent text-base outline-none" />
+              className="min-w-0 flex-1 bg-transparent text-base outline-none lg:w-36 lg:flex-none" />
             <button className="mr-1.5 h-10 rounded-xl bg-cream-2 px-3 text-sm font-bold text-bean">Tra</button>
           </form>
         </div>
-        <div className="h-9 px-4">
+        <div className="min-h-2 px-3 lg:h-9 lg:px-4">
           {flash && (
             <div className={`animate-pop inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-base font-bold ${flash.tone === "ok" ? "bg-done text-white" : "bg-caramel text-white"}`}>
               {flash.tone === "ok" ? "✓" : "✕"} {flash.text}
@@ -307,11 +343,11 @@ function Pos() {
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          {panel.kind === "idle" && <Idle onCamera={() => setCamera(true)} />}
+        <div className="px-3 pb-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-4 lg:pb-4">
+          {panel.kind === "idle" && <Idle onCamera={() => setCamera(true)} onSell={() => setPanel({ kind: "sell", member: null })} />}
           {panel.kind === "member" && (
             <MemberPanel panel={panel} onOpen={(o) => setPanel({ kind: "order", member: panel.member, order: o })}
-              onCreate={() => setPanel({ kind: "create", member: panel.member })}
+              onCreate={() => setPanel({ kind: "sell", member: panel.member })}
               onPoints={() => setPanel({ kind: "points", member: panel.member })}
               onClose={() => setPanel({ kind: "idle" })} />
           )}
@@ -320,19 +356,19 @@ function Pos() {
               onPay={(m) => pay(panel.order, m)} onCancel={() => cancel(panel.order)}
               onPrint={() => setPrint({ order: panel.order, n: Date.now() })}
               onNext={() => setPanel({ kind: "idle" })}
-              onCreate={() => setPanel({ kind: "create", member: panel.member })}
+              onCreate={() => setPanel({ kind: "sell", member: panel.member })}
               onEdit={() => setPanel({ kind: "edit", member: panel.member, order: panel.order })} />
           )}
           {panel.kind === "edit" && (
             <CreateOrder key={panel.order.id} member={panel.member} menu={menu} order={panel.order} busy={busy}
               onBack={() => setPanel({ kind: "order", member: panel.member, order: panel.order })}
-              onConfirm={(lines, m) => pay({ ...panel.order, items: lines }, m, true)}
-              onCreated={() => {}} />
+              onConfirm={(lines, m) => pay({ ...panel.order, items: lines }, m, true)} />
           )}
-          {panel.kind === "create" && (
-            <CreateOrder member={panel.member} menu={menu}
-              onBack={() => setPanel({ kind: "member", member: panel.member, pending: null })}
-              onCreated={(o) => { beep(); put(o); setPanel({ kind: "order", member: panel.member, order: o }); }} />
+          {panel.kind === "sell" && (
+            <CreateOrder member={panel.member} menu={menu} busy={busy}
+              onBack={() => setPanel(panel.member ? { kind: "member", member: panel.member, pending: null } : { kind: "idle" })}
+              onClearMember={() => setPanel({ kind: "sell", member: null })}
+              onConfirm={(lines, m) => sell(panel.member, lines, m)} />
           )}
           {panel.kind === "points" && (
             <PointsOnly member={panel.member} onBack={() => setPanel({ kind: "member", member: panel.member, pending: null })}
@@ -342,7 +378,7 @@ function Pos() {
       </section>
 
       {/* ------------------------- Cột phải: đơn hôm nay ------------------------- */}
-      <TodayList orders={today} current={panel.kind === "order" ? panel.order.id : null} onOpen={openOrder}
+      <TodayList hidden={view !== "list"} orders={today} current={panel.kind === "order" ? panel.order.id : null} onOpen={openOrder}
         autoPrint={autoPrint} onToggleAutoPrint={toggleAutoPrint} />
 
       {camera && <Scanner onResult={onCamera} onClose={() => setCamera(false)} title="Quét mã QR trên app của khách" />}
@@ -352,20 +388,24 @@ function Pos() {
 }
 
 // ---------------------------------------------------------------------------
-function Idle({ onCamera }: { onCamera: () => void }) {
+function Idle({ onCamera, onSell }: { onCamera: () => void; onSell: () => void }) {
   return (
-    <div className="grid h-full place-items-center">
+    <div className="grid place-items-center py-4 lg:h-full lg:py-0">
       <div className="max-w-xl text-center">
-        <div className="mx-auto grid h-28 w-28 place-items-center rounded-[2rem] bg-paper text-caramel shadow-sm"><IQR size={56} /></div>
-        <h2 className="mt-6 text-3xl font-bold text-bean-dark">Quét mã QR của khách</h2>
-        <p className="mt-3 text-lg text-muted">
+        <div className="mx-auto hidden h-28 w-28 lg:grid place-items-center rounded-[2rem] bg-paper text-caramel shadow-sm"><IQR size={56} /></div>
+        <h2 className="text-2xl font-bold text-bean-dark lg:mt-6 lg:text-3xl">Quét mã QR của khách</h2>
+        <p className="mt-3 text-base text-muted lg:text-lg">
           Máy quét 2D đã sẵn sàng — chỉ cần quét. Không có máy quét thì bấm <button onClick={onCamera} className="font-bold text-caramel underline">Quét bằng camera</button>,
           hoặc nhập SĐT tay nếu mã bị lỗi.
         </p>
-        <div className="mt-8 grid grid-cols-3 gap-3 text-left text-sm">
+        <button onClick={onSell} className="btn-primary mx-auto mt-6 flex h-16 items-center gap-2 px-8 text-xl">
+          ＋ Bán tại quầy
+        </button>
+        <div className="mt-2 text-sm text-muted">Khách gọi món trực tiếp, không cần app</div>
+        <div className="mt-8 grid grid-cols-1 gap-3 text-left text-sm sm:grid-cols-3">
           {[
             ["Mã có đơn", "Mở đơn, đối chiếu món & tổng tiền, rồi Xác nhận & thu tiền."],
-            ["Mã thành viên", "Tạo đơn tại quầy, hoặc chỉ tích điểm cho hoá đơn."],
+            ["Mã thành viên", "Chọn món cho khách và tích điểm, hoặc chỉ tích điểm."],
             ["Tích điểm", "1 điểm / 10.000đ, mỗi đơn chỉ cộng đúng 1 lần."],
           ].map(([t, d]) => (
             <div key={t} className="rounded-2xl bg-paper p-4">
@@ -382,12 +422,12 @@ function Idle({ onCamera }: { onCamera: () => void }) {
 function MemberPanel({ panel, onOpen, onCreate, onPoints, onClose }: {
   panel: Extract<Panel, { kind: "member" }>; onOpen: (o: Order) => void; onCreate: () => void; onPoints: () => void; onClose: () => void;
 }) {
-  const big = "flex h-40 flex-col items-center justify-center gap-2 rounded-3xl text-center shadow-sm active:scale-[0.98] transition";
+  const big = "flex h-28 sm:h-40 flex-col items-center justify-center gap-2 rounded-3xl text-center shadow-sm active:scale-[0.98] transition";
   return (
     <div className="mx-auto max-w-3xl space-y-5 pt-2">
       <MemberBadge member={panel.member} big />
       {panel.pending && (
-        <button onClick={() => onOpen(panel.pending!)} className="flex w-full items-center justify-between rounded-3xl border-2 border-mustard bg-mustard/20 p-5 text-left">
+        <button onClick={() => onOpen(panel.pending!)} className="flex w-full flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-mustard bg-mustard/20 p-4 text-left sm:p-5">
           <div>
             <div className="text-lg font-bold text-bean-dark">Khách có đơn đặt trước · mã {panel.pending.ref}</div>
             <div className="text-muted">{panel.pending.items.map((l) => `${l.qty} ${l.name}`).join(", ")} · {vnd(panel.pending.total)}</div>
@@ -395,7 +435,7 @@ function MemberPanel({ panel, onOpen, onCreate, onPoints, onClose }: {
           <span className="rounded-full bg-bean px-5 py-3 font-bold text-cream">Mở đơn →</span>
         </button>
       )}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         <button onClick={onCreate} className={`${big} bg-bean text-cream`}>
           <span className="text-2xl font-bold">Tạo đơn tại quầy</span>
           <span className="text-cream/75">Chọn món từ thực đơn</span>
@@ -421,12 +461,12 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, o
   const canCancel = vs === "pending" || vs === "confirmed" || vs === "making";
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_300px] gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="card flex min-h-0 flex-col p-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="card flex flex-col p-4 lg:min-h-0 lg:p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-muted">{order.code ? "Số đơn" : "Mã đơn tạm"}</div>
-            <div className="text-5xl font-bold leading-none tracking-tight text-bean-dark">{order.code ? `#${order.code}` : order.ref}</div>
+            <div className="text-4xl font-bold leading-none tracking-tight text-bean-dark lg:text-5xl">{order.code ? `#${order.code}` : order.ref}</div>
             <div className="mt-2 text-sm text-muted">
               {SOURCE[order.source ?? "app"] ?? "Đặt trên app"} · đặt lúc {hhmm(order.created_at)}
               {order.payment_method && ` · ${PAYMENT_LABEL[order.payment_method]} lúc ${hhmm(order.paid_at)}`}
@@ -434,7 +474,7 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, o
           </div>
           <StatusPill o={order} big />
         </div>
-        <ul className="mt-4 min-h-0 flex-1 divide-y divide-line overflow-y-auto border-y border-line">
+        <ul className="mt-4 divide-y divide-line border-y border-line lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {order.items.map((l, i) => (
             <li key={i} className="flex items-start justify-between gap-4 py-3">
               <LineText line={l} large />
@@ -448,12 +488,14 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, o
         <div className="mt-3 space-y-1 text-lg">
           <div className="flex justify-between text-muted"><span>{count} món · tạm tính</span><span className="tabular-nums">{vnd(order.subtotal ?? order.total)}</span></div>
           {!!order.discount && <div className="flex justify-between text-caramel"><span>Ưu đãi: {order.voucher_title}</span><span className="tabular-nums">−{vnd(order.discount)}</span></div>}
-          <div className="flex items-baseline justify-between"><span className="font-bold text-bean-dark">Tổng cộng</span><span className="text-4xl font-bold tabular-nums text-bean-dark">{vnd(order.total)}</span></div>
+          <div className="flex items-baseline justify-between"><span className="font-bold text-bean-dark">Tổng cộng</span><span className="text-3xl font-bold tabular-nums text-bean-dark lg:text-4xl">{vnd(order.total)}</span></div>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-col gap-3">
-        <MemberBadge member={member} />
+      <div className="flex flex-col gap-3 lg:min-h-0">
+        {member ? <MemberBadge member={member} /> : (
+          <div className="rounded-3xl bg-paper p-4 text-center font-bold text-bean-dark">Khách vãng lai · không tích điểm</div>
+        )}
         {notice && (
           <div className={`rounded-2xl p-4 font-semibold ${notice.tone === "error" ? "bg-caramel text-white" : notice.tone === "info" ? "bg-accent-soft text-bean-dark" : "bg-mustard/40 text-mustard-ink"}`}>
             <div className="text-lg font-bold">{notice.tone === "error" ? "Không dùng được mã này" : notice.tone === "info" ? "Đã sửa món (chưa lưu)" : "Đơn đã được xác nhận"}</div>
@@ -464,7 +506,7 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, o
           <div className="animate-pop rounded-2xl bg-done p-4 text-white">
             <div className="text-lg font-bold">✓ Đã thu {vnd(order.total)}</div>
             <div className="mt-1 text-sm text-white/90">
-              {order.payment_method && PAYMENT_LABEL[order.payment_method]} · +{paid.points} điểm · đơn #{order.code} đã sang bếp
+              {order.payment_method && PAYMENT_LABEL[order.payment_method]}{member ? ` · +${paid.points} điểm` : ""} · đơn #{order.code} đã sang bếp
             </div>
           </div>
         )}
@@ -516,16 +558,18 @@ const hasOptions = (m: MenuItem) => {
   return !!(o.sizes?.length || o.sugar?.length || o.ice?.length || o.toppings?.length);
 };
 
-function CreateOrder({ member, menu, order, busy: payBusy, onBack, onCreated, onConfirm }: {
-  member: Member; menu: MenuItem[]; order?: Order; busy?: boolean; onBack: () => void; onCreated: (o: Order) => void;
-  onConfirm?: (lines: OrderLine[], method: "cash" | "transfer") => void;
+/** Chọn món tại quầy. Có `order` = thêm món cho đơn đặt trên app; không có = bán tại quầy.
+ *  Cả hai: chọn Tiền mặt / Chuyển khoản rồi Xác nhận ngay trên màn này. */
+function CreateOrder({ member, menu, order, busy, onBack, onConfirm, onClearMember }: {
+  member: Member | null; menu: MenuItem[]; order?: Order; busy?: boolean; onBack: () => void;
+  onConfirm: (lines: OrderLine[], method: "cash" | "transfer") => void; onClearMember?: () => void;
 }) {
   const { api } = useStaff();
   const toast = useToast();
   const [cat, setCat] = useState<Category>("Cà phê");
   const [lines, setLines] = useState<OrderLine[]>(order?.items ?? []);
   const [pick, setPick] = useState<MenuItem | null>(null);
-  const [busy, setBusy] = useState(false);
+  const cartRef = useRef<HTMLDivElement>(null);
   const list = useMemo(() => menu.filter((m) => m.category === cat), [menu, cat]);
   const sum = lines.reduce((s, l) => s + l.lineTotal, 0);
   const [method, setMethod] = useState<"cash" | "transfer">("cash");
@@ -549,39 +593,43 @@ function CreateOrder({ member, menu, order, busy: payBusy, onBack, onCreated, on
   const setQty = (i: number, q: number) =>
     setLines((prev) => (q <= 0 ? prev.filter((_, j) => j !== i) : prev.map((l, j) => (j === i ? { ...l, qty: q, lineTotal: q * l.unitPrice } : l))));
 
-  async function create() {
-    setBusy(true);
-    try { onCreated(await api.createOrder(member.phone, lines.map(toInput))); }
-    catch (e) { toast((e as Error).message); }
-    setBusy(false);
-  }
-
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1fr)_300px] gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex min-h-0 flex-col">
-        <div className="flex items-center gap-2">
-          <button onClick={onBack} className="h-11 rounded-full bg-paper px-4 text-sm font-bold text-muted">← Quay lại</button>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3 pb-20 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4 lg:pb-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex min-w-0 flex-col lg:min-h-0">
+        <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 lg:mx-0 lg:px-0 lg:pb-0">
+          <button onClick={onBack} className="h-11 shrink-0 rounded-full bg-paper px-4 text-sm font-bold text-muted">← Quay lại</button>
           {CATEGORIES.map((c) => (
             <button key={c} onClick={() => setCat(c)}
-              className={`h-11 rounded-full px-5 font-bold ${cat === c ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>{c}</button>
+              className={`h-11 shrink-0 whitespace-nowrap rounded-full px-4 font-bold lg:px-5 ${cat === c ? "bg-bean text-cream" : "bg-paper text-bean-dark"}`}>{c}</button>
           ))}
         </div>
-        <div className="mt-3 grid min-h-0 flex-1 auto-rows-min grid-cols-3 gap-3 overflow-y-auto pb-2 xl:grid-cols-4">
+        <div className="mt-3 grid auto-rows-min grid-cols-2 gap-2 pb-2 sm:grid-cols-3 lg:min-h-0 lg:flex-1 lg:gap-3 lg:overflow-y-auto xl:grid-cols-4">
           {list.map((m) => (
             <button key={m.id} disabled={!m.available}
               onClick={() => (hasOptions(m) ? setPick(m) : add({ itemId: m.id, name: m.name, image: m.image, qty: 1, unitPrice: m.price, toppings: [] }))}
               className="card flex flex-col items-center p-3 text-center active:scale-[0.97] disabled:opacity-40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={asset(m.image)} alt="" className={`h-20 w-20 rounded-2xl object-cover ${m.available ? "" : "grayscale"}`} />
+              <img src={asset(m.image)} alt="" className={`h-16 w-16 rounded-2xl object-cover lg:h-20 lg:w-20 ${m.available ? "" : "grayscale"}`} />
               <div className="mt-2 font-semibold leading-tight text-bean-dark">{m.name}</div>
               <div className="text-sm text-muted">{m.available ? vnd(m.price) : "Hết hàng"}</div>
             </button>
           ))}
         </div>
       </div>
-      <div className="card flex min-h-0 flex-col p-4">
-        <div className="text-sm text-muted">{order ? `Thêm món cho đơn ${order.ref ?? ""} · ` : "Đơn cho "}•••• {member.phone.slice(-4)}{member.name ? ` · ${member.name}` : ""}</div>
-        <ul className="mt-2 min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+      <div ref={cartRef} className="card flex scroll-mt-28 flex-col p-4 lg:min-h-0">
+        {order ? (
+          <div className="text-sm text-muted">Thêm món cho đơn {order.ref ?? ""}{member ? ` · •••• ${member.phone.slice(-4)}` : ""}</div>
+        ) : member ? (
+          <div className="flex items-center justify-between gap-2 rounded-2xl bg-cream-2 px-3 py-2 text-sm">
+            <span className="font-semibold text-bean-dark">Tích điểm cho •••• {member.phone.slice(-4)}{member.name ? ` · ${member.name}` : ""}</span>
+            {onClearMember && <button onClick={onClearMember} className="font-bold text-muted">Bỏ</button>}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-cream-2 px-3 py-2 text-sm text-muted">
+            <span className="font-semibold text-bean-dark">Khách vãng lai.</span> Khách có app thì quét mã thành viên hoặc nhập SĐT ở trên để tích điểm.
+          </div>
+        )}
+        <ul className="mt-2 divide-y divide-line lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {lines.map((l, i) => (
             <li key={i} className="py-2">
               <LineText line={{ ...l, qty: l.qty }} />
@@ -595,32 +643,34 @@ function CreateOrder({ member, menu, order, busy: payBusy, onBack, onCreated, on
               </div>
             </li>
           ))}
-          {!lines.length && <li className="py-10 text-center text-muted">Chạm vào món để thêm</li>}
+          {!lines.length && <li className="py-6 text-center text-muted lg:py-10">Chạm vào món để thêm</li>}
         </ul>
         <div className="mt-2 flex items-baseline justify-between border-t border-line pt-3">
           <span className="font-bold">Tổng</span><span className="text-3xl font-bold tabular-nums">{vnd(total)}</span>
         </div>
         {order && <div className="text-right text-xs text-muted">trước khi thêm: {vnd(order.total)}{hasVoucher ? " · đã gồm ưu đãi" : ""}</div>}
-        {order ? (
-          <>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {(["cash", "transfer"] as const).map((m) => (
-                <button key={m} onClick={() => setMethod(m)}
-                  className={`h-12 rounded-2xl border-2 font-bold ${method === m ? "border-bean bg-bean text-cream" : "border-line bg-paper text-bean-dark"}`}>
-                  {m === "cash" ? "💵 " : "🏦 "}{PAYMENT_LABEL[m]}
-                </button>
-              ))}
-            </div>
-            <button disabled={!lines.length || payBusy} onClick={() => onConfirm?.(lines, method)}
-              className="mt-3 h-16 w-full rounded-3xl bg-done text-lg font-bold text-white shadow-lg active:scale-[0.98] disabled:opacity-60">
-              Xác nhận
-              <div className="text-xs font-semibold text-white/85">{vnd(total)} · +{pointsFor(total)} điểm</div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {(["cash", "transfer"] as const).map((m) => (
+            <button key={m} onClick={() => setMethod(m)}
+              className={`h-12 rounded-2xl border-2 font-bold ${method === m ? "border-bean bg-bean text-cream" : "border-line bg-paper text-bean-dark"}`}>
+              {m === "cash" ? "💵 " : "🏦 "}{PAYMENT_LABEL[m]}
             </button>
-          </>
-        ) : (
-          <button disabled={!lines.length || busy} onClick={create} className="btn-primary mt-3 h-16 w-full text-lg">Tạo đơn → thanh toán</button>
-        )}
+          ))}
+        </div>
+        <button disabled={!lines.length || busy} onClick={() => onConfirm(lines, method)}
+          className="mt-3 h-16 w-full rounded-3xl bg-done text-lg font-bold text-white shadow-lg active:scale-[0.98] disabled:opacity-60">
+          Xác nhận
+          <div className="text-xs font-semibold text-white/85">{vnd(total)}{member ? ` · +${pointsFor(total)} điểm` : ""}</div>
+        </button>
       </div>
+      {/* Điện thoại: thanh tổng tiền dính đáy, chạm để xuống phần thanh toán */}
+      {lines.length > 0 && (
+        <button onClick={() => cartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="fixed inset-x-3 bottom-3 z-20 flex h-14 items-center justify-between rounded-2xl bg-bean px-4 font-bold text-cream shadow-lg lg:hidden">
+          <span>{lines.reduce((s, l) => s + l.qty, 0)} món · {vnd(total)}</span>
+          <span>Thanh toán ↓</span>
+        </button>
+      )}
       <OptionPicker item={pick} onClose={() => setPick(null)} onAdd={add} />
     </div>
   );
@@ -656,7 +706,7 @@ function PointsOnly({ member, onBack, onNext }: { member: Member; onBack: () => 
           <button onClick={onNext} className="mt-5 h-14 rounded-2xl bg-white px-8 text-lg font-bold text-done">Khách tiếp theo →</button>
         </div>
       ) : (
-        <form onSubmit={submit} className="card space-y-4 p-6">
+        <form onSubmit={submit} className="card space-y-4 p-4 sm:p-6">
           <div className="text-xl font-bold text-bean-dark">Chỉ tích điểm cho hoá đơn tại quầy</div>
           <input autoFocus inputMode="numeric" value={n ? n.toLocaleString("vi-VN") : ""} onChange={(e) => setAmount(e.target.value)}
             placeholder="Số tiền hoá đơn, vd 85.000"
@@ -678,15 +728,15 @@ function PointsOnly({ member, onBack, onNext }: { member: Member; onBack: () => 
 }
 
 // ---------------------------------------------------------------------------
-function TodayList({ orders, current, onOpen, autoPrint, onToggleAutoPrint }: {
-  orders: Order[]; current: string | null; onOpen: (o: Order) => void; autoPrint: boolean; onToggleAutoPrint: () => void;
+function TodayList({ hidden, orders, current, onOpen, autoPrint, onToggleAutoPrint }: {
+  hidden?: boolean; orders: Order[]; current: string | null; onOpen: (o: Order) => void; autoPrint: boolean; onToggleAutoPrint: () => void;
 }) {
   const [filter, setFilter] = useState<"all" | "open">("all");
   const paid = orders.filter((o) => o.paid_at || (o.confirmed_at && o.status !== "cancelled"));
   const revenue = paid.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total, 0);
   const shown = filter === "open" ? orders.filter((o) => ["pending", "confirmed", "making"].includes(viewStatus(o))) : orders;
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col border-l border-line bg-paper xl:w-[340px]">
+    <aside className={`w-full shrink-0 flex-col bg-paper lg:flex lg:w-[300px] lg:border-l lg:border-line xl:w-[340px] ${hidden ? "hidden" : "flex"}`}>
       <div className="border-b border-line p-4">
         <div className="flex items-baseline justify-between">
           <div className="text-lg font-bold text-bean-dark">Đơn hôm nay</div>
@@ -709,7 +759,7 @@ function TodayList({ orders, current, onOpen, autoPrint, onToggleAutoPrint }: {
           </button>
         </div>
       </div>
-      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <ul className="space-y-2 p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {shown.map((o) => (
           <li key={o.id}>
             <button onClick={() => onOpen(o)}
@@ -717,7 +767,7 @@ function TodayList({ orders, current, onOpen, autoPrint, onToggleAutoPrint }: {
               <div className={`w-14 shrink-0 font-bold ${o.code ? "text-xl text-bean-dark" : "text-sm text-muted"}`}>{o.code ? `#${o.code}` : o.ref}</div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{o.items.map((l) => `${l.qty} ${l.name}`).join(", ")}</div>
-                <div className="text-xs text-muted">•••• {o.member_phone.slice(-4)} · {hhmm(o.confirmed_at ?? o.created_at)} · {vnd(o.total)}</div>
+                <div className="text-xs text-muted">{o.member_phone ? `•••• ${o.member_phone.slice(-4)}` : "Vãng lai"} · {hhmm(o.confirmed_at ?? o.created_at)} · {vnd(o.total)}</div>
               </div>
               <StatusPill o={o} />
             </button>

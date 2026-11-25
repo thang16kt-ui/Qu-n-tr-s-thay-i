@@ -118,28 +118,28 @@ export default function StaffGate({ page, title, right, children }: {
 
   return (
     <Ctx.Provider value={value}>
-      <div className="flex h-dvh flex-col overflow-hidden bg-cream-2 print:hidden">
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-paper px-4">
+      <div className="flex min-h-dvh flex-col bg-cream-2 print:hidden lg:h-dvh lg:overflow-hidden">
+        <header className="sticky top-0 z-30 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper px-3 py-2 lg:static lg:h-14 lg:flex-nowrap lg:px-4 lg:py-0">
           <div className="flex items-center gap-2">
             <LogoMark size={30} />
-            <span className="font-bold text-bean-dark">Mộc</span>
+            <span className="hidden font-bold text-bean-dark sm:inline">Mộc</span>
             <span className="rounded-full bg-bean px-2.5 py-0.5 text-xs font-bold text-cream">{title}</span>
           </div>
-          <nav className="flex rounded-full bg-cream-2 p-1">
+          <nav className="order-last flex w-full rounded-full bg-cream-2 p-1 lg:order-none lg:w-auto">
             {PAGES.map((p) => (
               <Link key={p.key} href={p.href}
-                className={`rounded-full px-4 py-1.5 text-sm font-semibold ${p.key === page ? "bg-bean text-cream" : "text-muted"}`}>
+                className={`flex-1 whitespace-nowrap rounded-full px-4 py-1.5 text-center text-sm font-semibold lg:flex-none ${p.key === page ? "bg-bean text-cream" : "text-muted"}`}>
                 {p.label}
               </Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm font-semibold text-bean-dark">
             {right}
-            <Clock />
+            <span className="hidden lg:inline"><Clock /></span>
             <button onClick={value.lock} className="rounded-full border-2 border-line px-3 py-1 text-xs font-bold text-muted">Khoá</button>
           </div>
         </header>
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="flex-1 lg:min-h-0">{children}</div>
       </div>
     </Ctx.Provider>
   );

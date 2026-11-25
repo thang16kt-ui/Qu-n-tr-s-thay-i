@@ -14,15 +14,15 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-6">
+    <div className="fixed inset-0 z-50 grid place-items-center p-3 sm:p-6">
       <div className="animate-fade absolute inset-0 bg-bean-dark/40" onClick={onClose} />
       <div className={`animate-pop relative flex max-h-[90dvh] w-full flex-col rounded-3xl bg-paper shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}>
-        <div className="flex items-center justify-between px-6 pb-2 pt-5">
+        <div className="flex items-center justify-between px-4 pb-2 pt-4 sm:px-6 sm:pt-5">
           <div className="text-xl font-bold text-bean-dark">{title}</div>
           <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-cream-2 text-bean" aria-label="Đóng"><IClose size={20} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 pb-4">{children}</div>
-        {footer && <div className="border-t border-line px-6 py-4">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6">{children}</div>
+        {footer && <div className="border-t border-line px-4 py-3 sm:px-6 sm:py-4">{footer}</div>}
       </div>
     </div>
   );
