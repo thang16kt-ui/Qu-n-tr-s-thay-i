@@ -7,7 +7,7 @@ export default function SetupNeeded() {
       <h1 className="mt-6 text-2xl font-bold text-bean-dark">Chưa kết nối database</h1>
       <p className="mt-3 text-muted">
         App cần Supabase để chạy. Hãy tạo file <b>.env.local</b> (sao chép từ <b>.env.example</b>) và điền
-        NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY — rồi khởi động lại app.
+        NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_ANON_KEY — rồi khởi động lại app (trên Vercel: Settings → Environment Variables → Redeploy).
       </p>
       <p className="mt-3 text-muted">Xem hướng dẫn chi tiết trong file README.md.</p>
     </main>

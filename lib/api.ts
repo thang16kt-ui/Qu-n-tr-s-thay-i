@@ -30,8 +30,10 @@ export const api = {
   redeem: (phone: string, voucherId: string) => rpc<MemberVoucher>("redeem_voucher", { p_phone: phone, p_voucher: voucherId }),
 };
 
-export type ScanResult = { member: Member; order: Order | null; orderCode: string | null };
+export type ScanResult = { member: Member; order: Order | null; pendingOrder?: Order | null; orderCode: string | null };
 export type StatusResult = { order: Order; points: number; hadSubscription: boolean };
+export type ConfirmResult = { order: Order; points: number; member: Member };
+export type NotifyResult = { ok: boolean; sent: boolean; reason?: string };
 
 export const staffApi = (pin: string) => ({
   check: () => rpc<boolean>("staff_check", { p_pin: pin }),
@@ -39,6 +41,24 @@ export const staffApi = (pin: string) => ({
   setStatus: (orderId: string, status: string) => rpc<StatusResult>("staff_set_status", { p_pin: pin, p_order: orderId, p_status: status }),
   addPoints: (phone: string, amount: number) => rpc<{ member: Member; points: number }>("staff_add_points", { p_pin: pin, p_phone: phone, p_amount: amount }),
   setAvailable: (id: string, available: boolean) => rpc<MenuItem>("staff_set_available", { p_pin: pin, p_id: id, p_available: available }),
+  confirm: (orderId: string, method: "cash" | "transfer") => rpc<ConfirmResult>("staff_confirm", { p_pin: pin, p_order: orderId, p_method: method }),
+  cancel: (orderId: string) => rpc<{ order: Order; points: number }>("staff_cancel", { p_pin: pin, p_order: orderId }),
+  createOrder: (phone: string, items: OrderInput[]) => rpc<Order>("staff_create_order", { p_pin: pin, p_phone: phone, p_items: items }),
+  saveMenuItem: (item: Partial<MenuItem>) => rpc<MenuItem>("staff_save_menu_item", { p_pin: pin, p_item: item }),
+  deleteMenuItem: (id: string) => rpc<boolean>("staff_delete_menu_item", { p_pin: pin, p_id: id }),
+  resetDemo: () => rpc<{ ok: boolean; orders: number; members: number }>("staff_reset_demo", { p_pin: pin }),
+  simulateOrder: () => rpc<Order>("staff_simulate_order", { p_pin: pin }),
+  /** Gửi Web Push "Đơn #A12 đã xong…" qua route /api/notify (chạy trên Vercel) */
+  notify: async (orderId: string): Promise<NotifyResult> => {
+    try {
+      const r = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/notify/`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, orderId }),
+      });
+      return (await r.json()) as NotifyResult;
+    } catch {
+      return { ok: false, sent: false, reason: "Không gọi được /api/notify" };
+    }
+  },
 });
 export type StaffApi = ReturnType<typeof staffApi>;
 

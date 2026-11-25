@@ -61,3 +61,29 @@ html, body {
 .animate-fade { animation: fade-in 0.2s ease; }
 .animate-pop { animation: pop 0.25s ease; }
 .animate-ring { animation: pulse-ring 1.4s ease-out infinite; }
+
+/* ---------- Tem dán ly 50×30mm (in từ /pos bằng window.print) ---------- */
+.label-root { display: none; }
+@media print {
+  body:has(> .label-root) > *:not(.label-root) { display: none !important; }
+  .label-root { display: block; }
+}
+.cup-label {
+  width: 50mm; height: 30mm; box-sizing: border-box; padding: 1.6mm 2.2mm;
+  display: flex; flex-direction: column; overflow: hidden;
+  break-after: page; page-break-after: always;
+  font-family: var(--font-sans); color: #000; font-size: 7.5pt; line-height: 1.2;
+}
+.cup-label:last-child { break-after: auto; page-break-after: auto; }
+.cup-head { display: flex; justify-content: space-between; align-items: baseline; }
+.cup-head b { font-size: 15pt; line-height: 1; }
+.cup-name { margin-top: 0.6mm; font-size: 9pt; font-weight: 700; }
+.cup-opt { font-size: 7.5pt; }
+.cup-note { font-size: 7.5pt; font-style: italic; font-weight: 600; }
+.cup-foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 6pt; color: #333; }
+
+/* Nháy màu khi quét mã ở quầy */
+@keyframes flash-red { 0%, 100% { background: transparent; } 20% { background: rgba(194, 67, 42, 0.18); } }
+@keyframes flash-green { 0%, 100% { background: transparent; } 20% { background: rgba(46, 125, 79, 0.14); } }
+.flash-red { animation: flash-red 1.2s ease; }
+.flash-green { animation: flash-green 0.8s ease; }

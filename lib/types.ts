@@ -70,6 +70,9 @@ export type Order = {
   /** Thời điểm huỷ: lúc hết hạn (đặt + 30 phút), lúc khách huỷ hoặc lúc quầy huỷ */
   cancelled_at?: string | null;
   cancel_reason?: "expired" | "customer" | "staff" | null;
+  payment_method?: "cash" | "transfer" | null;
+  paid_at?: string | null;
+  source?: "app" | "counter" | "demo" | null;
 };
 
 export type PointLog = {

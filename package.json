@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview": "npx serve out",
+    "start": "next start",
     "vapid": "web-push generate-vapid-keys"
   },
   "dependencies": {
@@ -15,7 +15,8 @@
     "next": "^16.4.6",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.5",
@@ -24,7 +25,9 @@
     "@types/react": "^19.3.1",
     "@types/react-dom": "^19.3.0",
     "tailwindcss": "^4.3.5",
-    "typescript": "^5.9.3",
-    "web-push": "^4.0.0"
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

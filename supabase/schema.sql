@@ -1,6 +1,6 @@
 -- =========================================================
 -- Mộc Coffee — database + toàn bộ logic (chạy trong Supabase → SQL Editor)
--- Thứ tự: schema.sql → seed.sql → settings.example.sql (điền giá trị của bạn)
+-- Thứ tự: schema.sql → pos.sql  (seed.sql không bắt buộc: pos.sql tự thêm thực đơn nếu còn trống)
 -- =========================================================
 
 create extension if not exists pgcrypto;
