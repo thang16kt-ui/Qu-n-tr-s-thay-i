@@ -1,7 +1,6 @@
 "use client";
 import { useSession } from "@/lib/session";
 import { buildQR } from "@/lib/qr";
-import { prettyPhone } from "@/lib/format";
 import Sheet from "./Sheet";
 import QRCode from "./QRCode";
 
@@ -16,7 +15,6 @@ export default function MemberQRSheet({ open, onClose }: { open: boolean; onClos
         <div className="rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(43,29,22,0.5)]">
           <QRCode value={value} size={232} />
         </div>
-        <div className="mt-3 font-mono text-xs tracking-wider text-muted">{prettyPhone(phone)} · {value.slice(-2)}</div>
         <p className="mt-3 max-w-xs text-center text-sm text-bean">
           Đưa mã cho nhân viên quét để tích điểm khi mua tại quầy.
         </p>

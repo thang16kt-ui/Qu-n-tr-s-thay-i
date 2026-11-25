@@ -6,7 +6,7 @@ import { useCart } from "@/lib/cart";
 import { buildQR } from "@/lib/qr";
 import { ACTIVE, DONE_VISIBLE_MIN, ORDER_EXPIRE_MIN, STATUS_LABEL, viewStatus, type ViewStatus } from "@/lib/orders";
 import { describeSelection } from "@/lib/pricing";
-import { dateTime, prettyPhone, vnd } from "@/lib/format";
+import { dateTime, vnd } from "@/lib/format";
 import { currentSubscription } from "@/lib/push";
 import { api, asset } from "@/lib/api";
 import type { Order } from "@/lib/types";
@@ -149,9 +149,6 @@ export default function OrderDetail({ order }: { order: Order }) {
           </div>
           <div className="mx-auto mt-5 w-fit rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(43,29,22,0.5)]">
             {phone && <QRCode value={qrValue} size={224} />}
-            <div className="mt-2 text-center font-mono text-xs tracking-wider text-muted">
-              {phone && prettyPhone(phone)} · {order.code} · {qrValue.slice(-2)}
-            </div>
           </div>
           <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
             Đưa mã cho nhân viên quét: vừa lên đơn vừa tích điểm.
