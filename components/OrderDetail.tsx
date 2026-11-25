@@ -16,8 +16,7 @@ import PushCard from "./PushCard";
 import { IBack, ICheck } from "./Icons";
 
 const STEPS: { key: ViewStatus[]; label: string }[] = [
-  { key: ["pending"], label: "Đến quầy" },
-  { key: ["confirmed"], label: "Xếp hàng" },
+  { key: ["pending", "confirmed"], label: "Chờ xác nhận" },
   { key: ["making"], label: "Đang pha" },
   { key: ["done"], label: "Đã xong" },
 ];
@@ -27,7 +26,7 @@ function Stepper({ status }: { status: ViewStatus }) {
   return (
     <div className="flex items-start">
       {STEPS.map((s, i) => {
-        const done = i < idx || (i === idx && status === "done");
+        const done = i < idx || (i === idx && (status === "done" || status === "confirmed"));
         const cur = i === idx;
         return (
           <div key={s.label} className="flex flex-1 flex-col items-center">
@@ -40,7 +39,7 @@ function Stepper({ status }: { status: ViewStatus }) {
             </div>
             <div className={`mt-1.5 text-center text-xs ${cur ? "font-bold text-bean-dark" : "text-muted"}`}>
               {s.label}
-              {cur && status === "pending" && <span className="block font-normal text-caramel">quét mã</span>}
+              {cur && status === "confirmed" && <span className="block font-normal text-caramel">Đã nhận đơn</span>}
               {cur && status === "making" && <span className="block animate-pulse font-normal text-caramel">đang làm…</span>}
             </div>
           </div>
