@@ -437,7 +437,7 @@ begin
         'title', 'Mộc Coffee',
         'body', 'Đơn #' || new.code || ' đã xong, mời bạn ra quầy nhận',
         'tag', 'order-' || new.id,
-        'url', 'qr/',
+        'url', 'orders/?id=' || new.id,
         'vapid', jsonb_build_object(
           'publicKey', private.setting('vapid_public'),
           'privateKey', private.setting('vapid_private'),

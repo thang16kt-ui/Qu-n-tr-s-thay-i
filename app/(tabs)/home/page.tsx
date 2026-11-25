@@ -43,7 +43,7 @@ export default function HomePage() {
       <section className="mt-5"><MemberCard /></section>
 
       {activeOrder && (
-        <Link href="/qr" className="mt-4 flex items-center gap-3 rounded-3xl bg-accent-soft p-4">
+        <Link href={`/orders/?id=${activeOrder.id}`} className="mt-4 flex items-center gap-3 rounded-3xl bg-accent-soft p-4">
           <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-caramel text-paper">
             <IQR size={22} />
             <span className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full border-2 border-accent-soft bg-bean" />

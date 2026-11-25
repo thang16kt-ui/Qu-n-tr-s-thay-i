@@ -40,7 +40,7 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
       await refresh();
       onClose();
       toast(`Đã đặt đơn #${order.code}`);
-      router.push("/qr");
+      router.push("/orders/");
     } catch (e) {
       setError((e as Error).message);
     } finally {

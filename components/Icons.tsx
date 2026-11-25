@@ -18,3 +18,5 @@ export const IShare = ({ className, size }: P) => (<svg {...base(size)} classNam
 export const IStar = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg>);
 export const ILogout = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>);
 export const IEdit = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M4 20h4L19 9l-4-4L4 16z" /></svg>);
+export const IReceipt = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6M9 16h3" /></svg>);
+export const IBack = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="m15 6-6 6 6 6" /></svg>);

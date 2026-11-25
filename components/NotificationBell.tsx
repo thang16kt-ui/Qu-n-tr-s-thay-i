@@ -21,8 +21,8 @@ export default function NotificationBell() {
   const list = useMemo<Noti[]>(() => {
     const out: Noti[] = [];
     for (const o of orders.slice(0, 10)) {
-      if (o.done_at) out.push({ id: o.id + "d", at: o.done_at, title: `Đơn #${o.code} đã xong`, body: "Mời bạn ra quầy nhận món nhé ☕", href: "/qr", tone: "done" });
-      if (o.confirmed_at) out.push({ id: o.id + "c", at: o.confirmed_at, title: `Đơn #${o.code} đã xác nhận`, body: `+${pointsFor(o.total)} điểm đã được cộng vào tài khoản`, href: "/me", tone: "info" });
+      if (o.done_at) out.push({ id: o.id + "d", at: o.done_at, title: `Đơn #${o.code} đã xong`, body: "Mời bạn ra quầy nhận món nhé ☕", href: `/orders/?id=${o.id}`, tone: "done" });
+      if (o.confirmed_at) out.push({ id: o.id + "c", at: o.confirmed_at, title: `Đơn #${o.code} đã xác nhận`, body: `+${pointsFor(o.total)} điểm đã được cộng vào tài khoản`, href: `/orders/?id=${o.id}`, tone: "info" });
       const vs = viewStatus(o);
       if (vs === "cancelled" || vs === "expired") {
         const at = vs === "expired" ? new Date(new Date(o.created_at).getTime() + ORDER_EXPIRE_MIN * 60000).toISOString() : o.created_at;

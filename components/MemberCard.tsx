@@ -1,15 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { sb } from "@/lib/supabase";
 import { useSession } from "@/lib/session";
 import { nextTier, tierInfo } from "@/lib/tiers";
 import { prettyPhone } from "@/lib/format";
 import { IQR } from "./Icons";
+import MemberQRSheet from "./MemberQRSheet";
 
 export default function MemberCard() {
   const { member, phone } = useSession();
   const [earned, setEarned] = useState(0);
+  const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => {
     if (!phone) return;
@@ -38,9 +39,9 @@ export default function MemberCard() {
           <div className="mt-2 text-lg font-bold">{member?.name || "Bạn của Mộc"}</div>
           <div className="text-sm text-paper/60">{phone && prettyPhone(phone)}</div>
         </div>
-        <Link href="/qr" className="flex items-center gap-1.5 rounded-full bg-paper px-3.5 py-2 text-sm font-semibold text-bean-dark active:scale-95">
-          <IQR size={18} /> Mã QR
-        </Link>
+        <button onClick={() => setQrOpen(true)} className="flex items-center gap-1.5 rounded-full bg-paper px-3.5 py-2 text-sm font-semibold text-bean-dark active:scale-95">
+          <IQR size={18} /> Mã thành viên
+        </button>
       </div>
 
       <div className="relative mt-6 flex items-end justify-between">
@@ -61,6 +62,7 @@ export default function MemberCard() {
           {nt.next ? <>Thêm <b className="text-paper">{nt.remaining} điểm</b> để lên hạng <b className="text-paper">{nt.next.name}</b></> : <>Bạn đang ở hạng cao nhất</>}
         </div>
       </div>
+      <MemberQRSheet open={qrOpen} onClose={() => setQrOpen(false)} />
     </div>
   );
 }

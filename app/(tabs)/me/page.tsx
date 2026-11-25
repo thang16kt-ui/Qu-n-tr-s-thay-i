@@ -5,27 +5,19 @@ import { useRouter } from "next/navigation";
 import { sb } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
-import { useMyOrders } from "@/lib/my-orders";
-import { STATUS_LABEL, viewStatus } from "@/lib/orders";
 import { tierInfo, TIERS } from "@/lib/tiers";
-import { dateTime, prettyPhone, vnd } from "@/lib/format";
+import { dateTime, prettyPhone } from "@/lib/format";
 import type { PointLog } from "@/lib/types";
 import PushCard from "@/components/PushCard";
 import InstallGuide from "@/components/InstallGuide";
 import { IEdit, ILogout, IChevron } from "@/components/Icons";
 import { useToast } from "@/components/Toast";
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "bg-accent-soft text-caramel", confirmed: "bg-caramel/15 text-caramel", making: "bg-caramel/15 text-caramel",
-  done: "bg-done/15 text-done", cancelled: "bg-danger-soft text-danger", expired: "bg-danger-soft text-danger",
-};
 
 export default function MePage() {
   const { phone, member, logout, refresh } = useSession();
-  const { orders } = useMyOrders();
   const router = useRouter();
   const toast = useToast();
-  const [tab, setTab] = useState<"points" | "orders">("points");
   const [logs, setLogs] = useState<PointLog[]>([]);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -84,48 +76,23 @@ export default function MePage() {
         </details>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 rounded-full bg-cream-2 p-1">
-        {([["points", "Lịch sử điểm"], ["orders", "Lịch sử đơn"]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`rounded-full py-2.5 text-sm font-semibold transition ${tab === k ? "bg-paper text-bean-dark shadow-sm" : "text-muted"}`}>
-            {label}
-          </button>
-        ))}
+      <div className="mt-6 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Lịch sử điểm</h2>
+        <Link href="/orders/" className="text-sm font-semibold text-caramel">Xem đơn hàng</Link>
       </div>
-
-      <div className="card mt-3 px-4 py-1">
-        {tab === "points" && (
-          <ul className="divide-y divide-line">
-            {logs.map((l) => (
-              <li key={l.id} className="flex items-center justify-between py-3">
-                <span>
-                  <span className="block text-sm font-medium text-bean-dark">{l.note || "Tích điểm"}</span>
-                  <span className="block text-xs text-muted">{dateTime(l.created_at)}</span>
-                </span>
-                <span className={`font-bold ${l.points >= 0 ? "text-done" : "text-danger"}`}>{l.points >= 0 ? "+" : ""}{l.points}</span>
-              </li>
-            ))}
-            {logs.length === 0 && <li className="py-8 text-center text-sm text-muted">Chưa có lịch sử điểm.</li>}
-          </ul>
-        )}
-        {tab === "orders" && (
-          <ul className="divide-y divide-line">
-            {orders.map((o) => {
-              const vs = viewStatus(o);
-              return (
-                <li key={o.id} className="py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-bean-dark">#{o.code}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLOR[vs]}`}>{STATUS_LABEL[vs]}</span>
-                  </div>
-                  <div className="mt-0.5 text-sm text-muted">{o.items.map((l) => `${l.qty}× ${l.name}`).join(", ")}</div>
-                  <div className="mt-0.5 flex justify-between text-xs text-muted"><span>{dateTime(o.created_at)}</span><span className="font-semibold text-bean">{vnd(o.total)}</span></div>
-                </li>
-              );
-            })}
-            {orders.length === 0 && <li className="py-8 text-center text-sm text-muted">Chưa có đơn nào.</li>}
-          </ul>
-        )}
+      <div className="card mt-2 px-4 py-1">
+        <ul className="divide-y divide-line">
+          {logs.map((l) => (
+            <li key={l.id} className="flex items-center justify-between py-3">
+              <span>
+                <span className="block text-sm font-medium text-bean-dark">{l.note || "Tích điểm"}</span>
+                <span className="block text-xs text-muted">{dateTime(l.created_at)}</span>
+              </span>
+              <span className={`font-bold ${l.points >= 0 ? "text-done" : "text-danger"}`}>{l.points >= 0 ? "+" : ""}{l.points}</span>
+            </li>
+          ))}
+          {logs.length === 0 && <li className="py-8 text-center text-sm text-muted">Chưa có lịch sử điểm.</li>}
+        </ul>
       </div>
 
       <h2 className="mt-6 text-sm font-semibold uppercase tracking-wider text-muted">Cài đặt</h2>

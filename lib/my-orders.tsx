@@ -45,10 +45,10 @@ export function MyOrdersProvider({ children }: { children: React.ReactNode }) {
             return [{ ...(prev.find((x) => x.id === o.id) ?? {}), ...o } as Order, ...rest]
               .sort((a, b) => b.created_at.localeCompare(a.created_at));
           });
-          // Đơn vừa chuyển sang "Đã xong": kêu + chuyển sang màn QR (màn QR sẽ đổi xanh)
+          // Đơn vừa chuyển sang "Đã xong": kêu + mở chi tiết đơn (màn hình chuyển xanh)
           if (o.status === "done" && before && before !== "done") {
             if (document.visibilityState === "visible") chime();
-            router.push("/qr");
+            router.push(`/orders/?id=${o.id}`);
           }
         })
       .subscribe();
