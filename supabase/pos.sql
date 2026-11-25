@@ -16,7 +16,7 @@ alter table orders add column if not exists source text not null default 'app'; 
 create index if not exists orders_confirmed_idx on orders(confirmed_at);
 create index if not exists orders_created_idx on orders(created_at);
 
--- Thông báo "Đơn đã xong" giờ do route /api/notify (Vercel) gửi → bỏ trigger cũ để không gửi 2 lần
+-- Thông báo "Đơn đã xong" giờ do route /api/notify (máy chủ Next.js trên Render/Vercel) gửi → bỏ trigger cũ để không gửi 2 lần
 drop trigger if exists orders_done_push on orders;
 drop function if exists private.on_order_done();
 
