@@ -15,13 +15,15 @@ Giao diện: **Next.js 16** chạy trên **Vercel**. Dữ liệu và logic: **Su
 - **Quản lý** `/admin`: thêm/sửa/xoá món, giá, ảnh, hết hàng (realtime sang app khách); **Giả lập khách đặt đơn**, **Đặt lại dữ liệu mẫu**; kiểm tra khoá VAPID.
 - Cả 3 trang dùng chung **PIN nhân viên** (mặc định `1234`). Link cũ `/staff` tự chuyển sang `/pos`.
 
-👉 **Đưa lên mạng: xem [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md)** (Vercel + Supabase, từng bước, cho người không biết lập trình).
+**Bản đang chạy:** https://moc-coffee-app.onrender.com · quầy `/pos` · bếp `/kitchen` · quản lý `/admin` (PIN `1234`)
+
+👉 **Đưa lên mạng: xem [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md)** (Render hoặc Vercel + Supabase, từng bước, cho người không biết lập trình).
 
 ## Kiến trúc
 
 ```
 Điện thoại khách · Tablet quầy / bếp / quản lý
-   │  Next.js trên Vercel (HTTPS)
+   │  Next.js trên Render Web Service (HTTPS) — chạy được cả trên Vercel
    │      └─ /api/notify ── web-push + VAPID (biến môi trường) ──▶ Web Push tới điện thoại khách
    ▼
 Supabase

@@ -1,4 +1,9 @@
-# Hướng dẫn đưa Mộc Coffee lên mạng (Vercel + Supabase)
+# Hướng dẫn đưa Mộc Coffee lên mạng (Render hoặc Vercel + Supabase)
+
+> **Bản đang chạy (Render):** https://moc-coffee-app.onrender.com
+> · Quầy: `/pos` · Bếp: `/kitchen` · Quản lý: `/admin` · PIN nhân viên `1234`
+> Gói miễn phí của Render “ngủ” sau 15 phút không ai mở; lần mở đầu tiên sau đó mất khoảng 1 phút để thức dậy.
+> Muốn tablet quầy/bếp luôn nhanh: nâng service lên gói **Starter** trên Render, hoặc dùng Vercel (không ngủ).
 
 Dành cho người **không biết lập trình**. Làm lần lượt từ Bước 1 đến Bước 7, khoảng 30–40 phút.
 Kết quả: một đường link dạng `https://moc-coffee.vercel.app` (có sẵn HTTPS) mở được trên điện thoại và tablet:
@@ -180,6 +185,27 @@ Dòng nào có **!** đỏ: xem lại biến tương ứng ở Bước 5 rồi R
 
 ---
 
+## Cách B — Đưa lên Render thay cho Vercel
+
+Làm Bước 1–4 như trên, rồi thay Bước 5 bằng:
+
+1. https://dashboard.render.com → **New → Web Service** (không chọn *Static Site*: trang tĩnh không chạy được `/api/notify`).
+2. Chọn kho **Qu-n-tr-s-thay-i** → **Connect**.
+3. Điền:
+   - **Name**: `moc-coffee-app` (thành link `https://moc-coffee-app.onrender.com`)
+   - **Region**: **Singapore**
+   - **Branch**: `main` · **Runtime / Language**: **Node**
+   - **Build Command**: `npm ci && npm run build`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free (hoặc Starter nếu không muốn bị “ngủ”)
+4. Mục **Environment Variables** → thêm 5 biến ở bảng Bước 5, cộng thêm `NODE_VERSION` = `22`.
+5. **Deploy Web Service** → chờ 3–5 phút đến khi thấy **Live**.
+
+Sửa biến sau này: service → **Environment** → sửa → **Save, rebuild, and deploy**.
+Trang tĩnh cũ `moc-coffee` (Static Site) không còn build được với bản mới — vào **Settings → Delete Web Service / Delete Static Site** để xoá.
+
+---
+
 ## Đổi mã PIN nhân viên
 
 Supabase → SQL Editor → chạy (thay `5678` bằng PIN mới):
@@ -207,6 +233,6 @@ Các tablet đang mở bấm **Khoá** rồi nhập PIN mới.
 ---
 
 ## Ghi chú
-- Trang cũ trên Render (`moc-coffee.onrender.com`) không còn gửi được thông báo sau Bước 2, vì việc gửi thông báo đã chuyển sang Vercel. Có thể xoá service đó trên Render.
+- Trang tĩnh cũ `moc-coffee.onrender.com` không còn gửi được thông báo sau Bước 2 (việc gửi đã chuyển sang route `/api/notify`). Dùng link mới `moc-coffee-app.onrender.com`; có thể xoá trang tĩnh cũ.
 - Link cũ `/staff` tự chuyển sang `/pos`.
 - Đây là bản **mô phỏng cho học tập**: PIN 4 số dùng chung, chưa có đăng nhập bằng OTP. Dùng thật cần PIN dài hơn và tài khoản riêng cho từng nhân viên.
