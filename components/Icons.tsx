@@ -1,0 +1,20 @@
+type P = { className?: string; size?: number };
+const base = (size = 24) => ({ width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const });
+
+export const IHome = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" /></svg>);
+export const ICup = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M5 8h12l-1.4 11.2A2 2 0 0 1 13.6 21H8.4a2 2 0 0 1-2-1.8z" /><path d="M4 8h14M9 4l1 4M14 3l-1 5" /></svg>);
+export const IQR = ({ className, size }: P) => (<svg {...base(size)} className={className}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 14h3v3M21 14v.01M14 21h3M20 18v3M17 17h.01" /></svg>);
+export const IGift = ({ className, size }: P) => (<svg {...base(size)} className={className}><rect x="3" y="8" width="18" height="5" rx="1" /><path d="M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7M12 8v13M12 8S10.5 3 8 4s1 4 4 4zm0 0s1.5-5 4-4-1 4-4 4z" /></svg>);
+export const IUser = ({ className, size }: P) => (<svg {...base(size)} className={className}><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>);
+export const IBell = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>);
+export const ISearch = ({ className, size }: P) => (<svg {...base(size)} className={className}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>);
+export const IPlus = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M12 5v14M5 12h14" /></svg>);
+export const IMinus = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M5 12h14" /></svg>);
+export const IClose = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M6 6l12 12M18 6 6 18" /></svg>);
+export const IChevron = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="m9 6 6 6-6 6" /></svg>);
+export const IBag = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>);
+export const ICheck = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>);
+export const IShare = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M12 3v12M8 7l4-4 4 4" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>);
+export const IStar = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg>);
+export const ILogout = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>);
+export const IEdit = ({ className, size }: P) => (<svg {...base(size)} className={className}><path d="M4 20h4L19 9l-4-4L4 16z" /></svg>);
