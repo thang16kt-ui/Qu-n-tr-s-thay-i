@@ -566,3 +566,31 @@ begin
     insert into private.settings(key, value) values ('pos_installed', now()::text);
   end if;
 end $$;
+-- =========================================================
+-- ĐIỆN THOẠI LÀM MÁY QUÉT (/scanner) → máy POS trên máy tính tự mở mã vừa quét
+--   Điện thoại gọi staff_push_scan; máy POS nghe realtime bảng scan_events.
+-- =========================================================
+create table if not exists scan_events (
+  id         bigserial primary key,
+  raw        text not null,
+  created_at timestamptz not null default now()
+);
+alter table scan_events enable row level security;
+drop policy if exists "read scan_events" on scan_events;
+create policy "read scan_events" on scan_events for select using (true);
+grant select on scan_events to anon, authenticated;
+do $$ begin
+  begin alter publication supabase_realtime add table scan_events; exception when duplicate_object then null; end;
+end $$;
+
+create or replace function public.staff_push_scan(p_pin text, p_raw text)
+returns bigint language plpgsql security definer set search_path = public as $$
+declare v_id bigint; v text := trim(coalesce(p_raw, ''));
+begin
+  perform private.check_pin(p_pin);
+  if v = '' or length(v) > 200 then raise exception 'Không đọc được mã'; end if;
+  delete from scan_events where created_at < now() - interval '1 day';
+  insert into scan_events(raw) values (v) returning id into v_id;
+  return v_id;
+end $$;
+grant execute on function public.staff_push_scan(text, text) to anon, authenticated;

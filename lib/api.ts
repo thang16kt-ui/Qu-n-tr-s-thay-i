@@ -51,6 +51,8 @@ export const staffApi = (pin: string) => ({
     rpc<ConfirmResult>("staff_sell", { p_pin: pin, p_phone: phone, p_items: items, p_method: method }),
   /** Xem trước đơn sau khi thêm/bớt món — CHƯA lưu, app khách chưa đổi */
   previewOrder: (orderId: string, items: OrderInput[]) => rpc<Order>("staff_preview_order", { p_pin: pin, p_order: orderId, p_items: items }),
+  /** Điện thoại làm máy quét: gửi mã vừa quét sang máy POS (máy tính) */
+  pushScan: (raw: string) => rpc<number>("staff_push_scan", { p_pin: pin, p_raw: raw }),
   saveMenuItem: (item: Partial<MenuItem>) => rpc<MenuItem>("staff_save_menu_item", { p_pin: pin, p_item: item }),
   deleteMenuItem: (id: string) => rpc<boolean>("staff_delete_menu_item", { p_pin: pin, p_id: id }),
   resetDemo: () => rpc<{ ok: boolean; orders: number; members: number }>("staff_reset_demo", { p_pin: pin }),

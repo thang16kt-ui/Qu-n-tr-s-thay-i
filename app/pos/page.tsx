@@ -226,11 +226,48 @@ function Pos() {
 
   const onCamera = useCallback((text: string) => { setCamera(false); handle(text); }, [handle]);
 
+  // Điện thoại làm máy quét (/scanner): mã quét trên điện thoại → máy POS này tự mở, như quét bằng máy quét cắm vào
+  const handleRef = useRef(handle);
+  handleRef.current = handle;
+  useEffect(() => {
+    const ch = sb().channel("pos-scan-events")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scan_events" }, (p) => {
+        const raw = (p.new as { raw?: string }).raw;
+        if (raw) { setCamera(false); handleRef.current(raw); }
+      })
+      .subscribe();
+    return () => { sb().removeChannel(ch); };
+  }, []);
+
   // Mở từ /admin (Giả lập khách đặt đơn → "Mở ở quầy")
   useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("scan");
     if (s) { window.history.replaceState(null, "", window.location.pathname); handle(s); }
   }, [handle]);
+
+  // ---- Điện thoại làm máy quét: máy khác vừa quét mã đơn → máy này tự mở đơn đó ----
+  const mountedAt = useRef(Date.now());
+  const seenScan = useRef(new Map<string, string>());
+  useEffect(() => {
+    for (const o of today) {
+      if (!o.scanned_at || o.status !== "pending") continue;
+      if (seenScan.current.get(o.id) === o.scanned_at) continue;
+      seenScan.current.set(o.id, o.scanned_at);
+      if (new Date(o.scanned_at).getTime() < mountedAt.current - 5000) continue; // quét trước khi mở trang
+      const p = panelRef.current;
+      if (p.kind === "order" && p.order.id === o.id) continue; // chính máy này vừa quét
+      // Đang chọn món / đang thu tiền đơn khác → không cắt ngang, chỉ báo
+      const busyHere = p.kind === "edit" || p.kind === "sell" || p.kind === "points" ||
+        (p.kind === "order" && viewStatus(p.order) === "pending");
+      beep();
+      if (busyHere) { show("ok", `Đơn ${o.ref} vừa được quét · mở trong Đơn hôm nay`); continue; }
+      show("ok", `Đơn ${o.ref} vừa được quét · ${o.items.reduce((n, l) => n + l.qty, 0)} món`);
+      const open = (member: Member | null) => setPanel({ kind: "order", member, order: o });
+      if (!o.member_phone) { open(null); continue; }
+      sb().from("members").select("*").eq("phone", o.member_phone).maybeSingle()
+        .then(({ data }) => open((data as Member | null) ?? null), () => open(null));
+    }
+  }, [today, show]);
 
   // Đơn đang mở cập nhật theo realtime (vd bếp bấm xong)
   useEffect(() => {

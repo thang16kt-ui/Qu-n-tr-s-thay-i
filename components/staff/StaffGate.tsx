@@ -21,6 +21,7 @@ const PAGES = [
   { key: "pos", href: "/pos", label: "Quầy" },
   { key: "kitchen", href: "/kitchen", label: "Bếp" },
   { key: "admin", href: "/admin", label: "Quản lý" },
+  { key: "scanner", href: "/scanner", label: "Máy quét" },
 ] as const;
 
 function Clock() {
@@ -128,7 +129,7 @@ export default function StaffGate({ page, title, right, children }: {
           <nav className="order-last flex w-full rounded-full bg-cream-2 p-1 lg:order-none lg:w-auto">
             {PAGES.map((p) => (
               <Link key={p.key} href={p.href}
-                className={`flex-1 whitespace-nowrap rounded-full px-4 py-1.5 text-center text-sm font-semibold lg:flex-none ${p.key === page ? "bg-bean text-cream" : "text-muted"}`}>
+                className={`flex-1 whitespace-nowrap rounded-full px-2 py-1.5 text-center text-sm font-semibold sm:px-4 lg:flex-none ${p.key === page ? "bg-bean text-cream" : "text-muted"}`}>
                 {p.label}
               </Link>
             ))}
