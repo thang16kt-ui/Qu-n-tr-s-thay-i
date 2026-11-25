@@ -709,18 +709,48 @@ grant execute on function public.place_order(text, jsonb, jsonb, uuid), public.s
   public.staff_set_status(text, uuid, text) to anon, authenticated;
 
 -- =========================================================
--- Khách tự huỷ đơn nháp (chưa được quét tại quầy)
--- Đổi sang 'cancelled' trước để trigger trả lại voucher, rồi xoá hẳn đơn
+-- Lưu thời điểm & lý do huỷ đơn (hết hạn / khách huỷ / quầy huỷ)
 -- =========================================================
-create or replace function cancel_order(p_phone text, p_order uuid) returns boolean
+alter table public.orders add column if not exists cancelled_at timestamptz;
+alter table public.orders add column if not exists cancel_reason text
+  check (cancel_reason in ('expired','customer','staff'));
+
+-- Mọi lần chuyển sang 'cancelled' đều được đóng dấu thời gian (mặc định: quầy huỷ)
+create or replace function private.stamp_cancel() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.status = 'cancelled' and old.status is distinct from 'cancelled' then
+    new.cancelled_at := coalesce(new.cancelled_at, now());
+    new.cancel_reason := coalesce(new.cancel_reason, 'staff');
+  end if;
+  return new;
+end $$;
+drop trigger if exists orders_stamp_cancel on public.orders;
+create trigger orders_stamp_cancel before update of status on public.orders
+for each row execute function private.stamp_cancel();
+
+-- Hết hạn: thời điểm huỷ = lúc đặt + 30 phút (đúng lúc đơn hết hạn, không phải lúc hệ thống dọn)
+create or replace function private.expire_stale() returns void
+language sql security definer set search_path = '' as $$
+  update public.orders
+  set status = 'cancelled', cancel_reason = 'expired', cancelled_at = created_at + interval '30 minutes'
+  where status = 'pending' and created_at < now() - interval '30 minutes'
+$$;
+
+-- Khách tự huỷ đơn nháp: giữ lại trong lịch sử, ghi giờ huỷ
+create or replace function public.cancel_order(p_phone text, p_order uuid) returns boolean
 language plpgsql security definer set search_path = public as $$
 begin
-  update orders set status = 'cancelled'
+  update orders set status = 'cancelled', cancel_reason = 'customer', cancelled_at = now()
   where id = p_order and member_phone = p_phone and status = 'pending';
   if not found then
     raise exception 'Đơn đã được quầy nhận hoặc không còn tồn tại';
   end if;
-  delete from orders where id = p_order;
   return true;
 end $$;
 grant execute on function public.cancel_order(text, uuid) to anon, authenticated;
+
+-- Đơn đã huỷ từ trước: đơn chưa từng được quét → coi là hết hạn
+update public.orders
+set cancel_reason = 'expired', cancelled_at = created_at + interval '30 minutes'
+where status = 'cancelled' and cancelled_at is null and confirmed_at is null;

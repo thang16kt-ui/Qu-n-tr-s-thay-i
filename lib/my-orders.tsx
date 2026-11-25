@@ -6,7 +6,7 @@ import { useSession } from "./session";
 import { chime } from "./sound";
 import type { Order } from "./types";
 
-const COLS = "id,code,ref,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at";
+const COLS = "id,code,ref,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at,cancelled_at,cancel_reason";
 
 type Ctx = { orders: Order[]; loaded: boolean; refresh: () => Promise<void> };
 const OrdersCtx = createContext<Ctx>({ orders: [], loaded: false, refresh: async () => {} });

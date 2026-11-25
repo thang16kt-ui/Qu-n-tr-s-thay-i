@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/session";
 import { useCart } from "@/lib/cart";
 import { buildQR } from "@/lib/qr";
-import { ACTIVE, DONE_VISIBLE_MIN, ORDER_EXPIRE_MIN, STATUS_LABEL, viewStatus, type ViewStatus } from "@/lib/orders";
+import { ACTIVE, DONE_VISIBLE_MIN, ORDER_EXPIRE_MIN, STATUS_LABEL, endedInfo, viewStatus, type ViewStatus } from "@/lib/orders";
 import { describeSelection } from "@/lib/pricing";
 import { dateTime, vnd } from "@/lib/format";
 import { currentSubscription } from "@/lib/push";
@@ -102,6 +102,7 @@ export default function OrderDetail({ order }: { order: Order }) {
   const active = ACTIVE.includes(vs as Order["status"]);
   const freshDone = vs === "done" && !!order.done_at && now - new Date(order.done_at).getTime() < DONE_VISIBLE_MIN * 60_000;
   const expired = vs === "expired" || vs === "cancelled";
+  const ended = endedInfo(order, now);
 
   // Đã bật thông báo từ trước → gắn vào đơn đang chờ để server gửi được
   useEffect(() => {
@@ -217,10 +218,12 @@ export default function OrderDetail({ order }: { order: Order }) {
 
       {expired && (
         <div className="animate-pop mt-5 rounded-3xl border-2 border-danger/25 bg-danger-soft p-5 text-center">
-          <div className="text-lg font-bold text-danger">Đơn đã hết hạn, vui lòng đặt lại</div>
+          <div className="text-lg font-bold text-danger">
+            {vs === "expired" ? "Đơn đã hết hạn, vui lòng đặt lại" : order.cancel_reason === "customer" ? "Bạn đã huỷ đơn này" : "Đơn đã bị huỷ"}
+          </div>
           <p className="mt-1 text-sm text-danger/80">
-            {vs === "cancelled" && (order.confirmed_at || new Date(order.created_at).getTime() > now - ORDER_EXPIRE_MIN * 60_000)
-              ? "Đơn đã bị huỷ." : `Đơn chưa được quét trong ${ORDER_EXPIRE_MIN} phút.`}
+            {vs === "expired" ? `Đơn chưa được quét trong ${ORDER_EXPIRE_MIN} phút.` : order.cancel_reason === "staff" ? "Quầy đã huỷ đơn." : ""}
+            {ended && <span className="block font-semibold">{ended.label} lúc {dateTime(ended.at)}</span>}
           </p>
           <button onClick={reorder} className="btn-primary mt-4 h-11 w-full">Đặt lại các món này</button>
         </div>
@@ -244,7 +247,7 @@ export default function OrderDetail({ order }: { order: Order }) {
       <Sheet open={confirmCancel} title="Huỷ đơn này?" onClose={() => !cancelling && setConfirmCancel(false)}>
         <div className="pb-safe">
           <p className="text-sm text-muted">
-            Đơn sẽ bị xoá{order.voucher_title ? " và ưu đãi được trả lại cho bạn" : ""}. Bạn có thể đặt lại bất cứ lúc nào.
+            Đơn sẽ chuyển sang “Đã huỷ” và lưu lại giờ huỷ{order.voucher_title ? ", ưu đãi được trả lại cho bạn" : ""}. Bạn có thể đặt lại bất cứ lúc nào.
           </p>
           <button onClick={cancelOrder} disabled={cancelling} className="btn-primary mt-5 h-12 w-full disabled:opacity-60">
             {cancelling ? "Đang huỷ…" : "Huỷ đơn"}

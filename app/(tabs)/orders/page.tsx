@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMyOrders } from "@/lib/my-orders";
-import { ACTIVE, STATUS_LABEL, orderNo, viewStatus } from "@/lib/orders";
+import { ACTIVE, STATUS_LABEL, endedInfo, orderNo, viewStatus } from "@/lib/orders";
 import { dateTime, vnd } from "@/lib/format";
 import { asset } from "@/lib/api";
 import type { Order } from "@/lib/types";
@@ -38,6 +38,7 @@ function ActiveCard({ o }: { o: Order }) {
 }
 
 function OrderRow({ o }: { o: Order }) {
+  const ended = endedInfo(o);
   return (
     <Link href={`/orders/?id=${o.id}`} className="flex items-center gap-3 py-3.5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,6 +49,7 @@ function OrderRow({ o }: { o: Order }) {
           <span className="text-xs text-muted">{dateTime(o.created_at)}</span>
         </span>
         <span className="block truncate text-sm text-muted">{o.items.map((l) => `${l.qty}× ${l.name}`).join(", ")}</span>
+        {ended && <span className="block text-xs font-medium text-danger">{ended.label} lúc {dateTime(ended.at)}</span>}
       </span>
       <span className="flex flex-col items-end gap-1">
         {pill(o)}

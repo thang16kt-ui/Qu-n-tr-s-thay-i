@@ -9,9 +9,25 @@ export const ACTIVE: OrderStatus[] = ["pending", "confirmed", "making"];
 
 export type ViewStatus = OrderStatus | "expired";
 
-export function viewStatus(o: Pick<Order, "status" | "created_at">, now = Date.now()): ViewStatus {
+type StatusFields = Pick<Order, "status" | "created_at" | "cancelled_at" | "cancel_reason">;
+
+export function viewStatus(o: StatusFields, now = Date.now()): ViewStatus {
   if (o.status === "pending" && now - new Date(o.created_at).getTime() > ORDER_EXPIRE_MIN * 60_000) return "expired";
+  if (o.status === "cancelled" && o.cancel_reason === "expired") return "expired";
   return o.status;
+}
+
+/** Đơn hết hạn / bị huỷ: lúc nào và vì sao — vd "Hết hạn lúc 21:24 25/11" */
+export function endedInfo(o: StatusFields, now = Date.now()): { at: string; label: string } | null {
+  const vs = viewStatus(o, now);
+  if (vs === "expired") {
+    const at = o.cancelled_at ?? new Date(new Date(o.created_at).getTime() + ORDER_EXPIRE_MIN * 60_000).toISOString();
+    return { at, label: "Hết hạn" };
+  }
+  if (vs === "cancelled" && o.cancelled_at) {
+    return { at: o.cancelled_at, label: o.cancel_reason === "customer" ? "Bạn huỷ" : "Quầy huỷ" };
+  }
+  return null;
 }
 
 export const STATUS_LABEL: Record<ViewStatus, string> = {
