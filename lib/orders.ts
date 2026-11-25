@@ -47,7 +47,7 @@ export function makeOrderCode(countToday: number): string {
 
 /** Các cột đơn dùng ở màn hình nhân viên */
 export const STAFF_COLS =
-  "id,code,ref,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at,payment_method,paid_at,source,cancelled_at,cancel_reason";
+  "id,code,ref,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at,payment_method,paid_at,source,cancelled_at,cancel_reason,scanned_at";
 
 export const PAYMENT_LABEL = { cash: "Tiền mặt", transfer: "Chuyển khoản" } as const;
 

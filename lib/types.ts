@@ -57,6 +57,8 @@ export type Order = {
   code: string | null;
   /** Mã tạm 4 ký tự in trong QR trước khi đến quầy */
   ref?: string | null;
+  /** Lúc quầy quét mã đơn (chưa thu tiền) */
+  scanned_at?: string | null;
   /** null = khách vãng lai mua tại quầy (không tích điểm) */
   member_phone: string | null;
   items: OrderLine[];

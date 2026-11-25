@@ -12,6 +12,7 @@
 -- ---------- Cột mới cho đơn ----------
 alter table orders add column if not exists payment_method text;   -- 'cash' | 'transfer'
 alter table orders add column if not exists paid_at timestamptz;
+alter table orders add column if not exists scanned_at timestamptz;  -- lúc quầy quét mã đơn (đơn hiện trên mọi máy POS)
 alter table orders add column if not exists source text not null default 'app';  -- 'app' | 'counter' | 'demo'
 -- Đơn bán tại quầy cho khách vãng lai (không có app) không có số điện thoại
 alter table orders alter column member_phone drop not null;
@@ -71,6 +72,10 @@ begin
     select * into o from orders
     where member_phone = p_phone and (ref = c or code = c)
     order by created_at desc limit 1;
+    -- Đánh dấu đã quét: đơn hiện ở "Đơn hôm nay" trên mọi máy POS, app khách báo "Quầy đã nhận mã"
+    if o.id is not null and o.status = 'pending' then
+      update orders set scanned_at = now() where id = o.id returning * into o;
+    end if;
   else
     select * into po from orders
     where member_phone = p_phone and status = 'pending'

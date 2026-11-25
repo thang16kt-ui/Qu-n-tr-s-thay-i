@@ -192,9 +192,15 @@ export default function OrderDetail({ order }: { order: Order }) {
           <div className="mx-auto mt-5 w-fit rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(42,22,14,0.35)]">
             {phone && <QRCode value={qrValue} size={224} />}
           </div>
-          <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
-            Mang mã này đến quầy để nhân viên quét và nhận đơn.
-          </p>
+          {order.scanned_at ? (
+            <p className="mx-auto mt-3 max-w-xs rounded-2xl bg-done/15 px-4 py-2 text-center text-sm font-bold text-done">
+              ✓ Quầy đã nhận mã — nhân viên đang xác nhận đơn của bạn.
+            </p>
+          ) : (
+            <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
+              Mang mã này đến quầy để nhân viên quét và nhận đơn.
+            </p>
+          )}
           <div className="card mt-3 p-4"><Stepper status={vs} /></div>
         </>
       )}

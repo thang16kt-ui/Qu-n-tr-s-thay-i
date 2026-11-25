@@ -27,7 +27,8 @@ const STAFF_COLOR: Record<ViewStatus, string> = {
 };
 function StatusPill({ o, big }: { o: Order; big?: boolean }) {
   const vs = viewStatus(o);
-  return <span className={`shrink-0 rounded-full font-bold ${big ? "px-4 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${STAFF_COLOR[vs]}`}>{STAFF_LABEL[vs]}</span>;
+  const label = vs === "pending" && o.scanned_at ? "Chờ thu tiền" : STAFF_LABEL[vs];
+  return <span className={`shrink-0 whitespace-nowrap rounded-full font-bold ${big ? "px-4 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${STAFF_COLOR[vs]}`}>{label}</span>;
 }
 const hhmm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "");
 const SOURCE: Record<string, string> = { app: "Đặt trên app", counter: "Tạo tại quầy", demo: "Đơn giả lập" };
@@ -96,8 +97,9 @@ function Pos() {
   const { orders: today, put } = useTodayOrders();
   // Đơn khách đặt trên app KHÔNG tự hiện ở quầy: chỉ mở được bằng cách quét mã của khách.
   // Danh sách "Đơn hôm nay" chỉ gồm đơn đã nhận (xác nhận) tại quầy.
-  const received = useMemo(() => today.filter((o) => o.confirmed_at)
-    .sort((a, b) => (b.confirmed_at ?? "").localeCompare(a.confirmed_at ?? "")), [today]);
+  // (đơn đã quét ở bất kỳ máy POS nào cũng hiện ở mọi máy — nhãn "Chờ thu tiền")
+  const received = useMemo(() => today.filter((o) => o.confirmed_at || o.scanned_at)
+    .sort((a, b) => (b.confirmed_at ?? b.scanned_at ?? "").localeCompare(a.confirmed_at ?? a.scanned_at ?? "")), [today]);
   const [panel, setPanel] = useState<Panel>({ kind: "idle" });
   const panelRef = useRef(panel);
   panelRef.current = panel;
@@ -777,7 +779,7 @@ function TodayList({ hidden, orders, current, onOpen, autoPrint, onToggleAutoPri
             </button>
           </li>
         ))}
-        {!shown.length && <li className="py-10 text-center text-sm text-muted">Chưa có đơn. Đơn khách đặt trên app chỉ hiện ở đây sau khi quét mã và xác nhận.</li>}
+        {!shown.length && <li className="py-10 text-center text-sm text-muted">Chưa có đơn. Đơn khách đặt trên app chỉ hiện ở đây sau khi quầy quét mã.</li>}
       </ul>
     </aside>
   );
