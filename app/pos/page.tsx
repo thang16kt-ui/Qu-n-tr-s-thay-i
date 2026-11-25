@@ -66,7 +66,9 @@ function useTodayOrders() {
     const onVis = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onVis);
     const t = setInterval(() => tick((n) => n + 1), 30_000); // cập nhật "hết hạn"
-    return () => { sb().removeChannel(ch); document.removeEventListener("visibilitychange", onVis); clearInterval(t); };
+    // Dự phòng khi realtime bị ngắt (hay gặp trên điện thoại): tải lại mỗi 5 giây khi trang đang mở
+    const poll = setInterval(() => document.visibilityState === "visible" && load(), 5_000);
+    return () => { sb().removeChannel(ch); document.removeEventListener("visibilitychange", onVis); clearInterval(t); clearInterval(poll); };
   }, []);
   return { orders, put };
 }
@@ -226,26 +228,13 @@ function Pos() {
 
   const onCamera = useCallback((text: string) => { setCamera(false); handle(text); }, [handle]);
 
-  // Điện thoại làm máy quét (/scanner): mã quét trên điện thoại → máy POS này tự mở, như quét bằng máy quét cắm vào
-  const handleRef = useRef(handle);
-  handleRef.current = handle;
-  useEffect(() => {
-    const ch = sb().channel("pos-scan-events")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scan_events" }, (p) => {
-        const raw = (p.new as { raw?: string }).raw;
-        if (raw) { setCamera(false); handleRef.current(raw); }
-      })
-      .subscribe();
-    return () => { sb().removeChannel(ch); };
-  }, []);
-
   // Mở từ /admin (Giả lập khách đặt đơn → "Mở ở quầy")
   useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("scan");
     if (s) { window.history.replaceState(null, "", window.location.pathname); handle(s); }
   }, [handle]);
 
-  // ---- Điện thoại làm máy quét: máy khác vừa quét mã đơn → máy này tự mở đơn đó ----
+  // ---- Đồng bộ giữa các máy /pos: máy khác (điện thoại / máy tính) vừa quét mã đơn → máy này tự mở đơn đó ----
   const mountedAt = useRef(Date.now());
   const seenScan = useRef(new Map<string, string>());
   useEffect(() => {
