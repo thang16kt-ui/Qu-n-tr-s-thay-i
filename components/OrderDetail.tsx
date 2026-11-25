@@ -159,6 +159,7 @@ export default function OrderDetail({ order }: { order: Order }) {
           <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
             Đưa mã cho nhân viên để đặt món.
           </p>
+          <div className="card mt-3 p-4"><Stepper status={vs} /></div>
         </>
       )}
 
@@ -182,7 +183,6 @@ export default function OrderDetail({ order }: { order: Order }) {
 
       {active && (
         <>
-          <div className="card mt-3 p-4"><Stepper status={vs} /></div>
           <div className="mt-3"><PushCard onSubscribed={(s) => phone && api.attachPush(phone, order.id, s).catch(() => {})} /></div>
         </>
       )}
