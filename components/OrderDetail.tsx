@@ -10,9 +10,12 @@ import { dateTime, vnd } from "@/lib/format";
 import { currentSubscription } from "@/lib/push";
 import { api, asset } from "@/lib/api";
 import { sb } from "@/lib/supabase";
+import { useMyOrders } from "@/lib/my-orders";
 import type { Order } from "@/lib/types";
 import QRCode from "./QRCode";
 import PushCard from "./PushCard";
+import Sheet from "./Sheet";
+import { useToast } from "./Toast";
 import { IBack, ICheck } from "./Icons";
 
 const STEPS: { key: ViewStatus[]; label: string }[] = [
@@ -83,6 +86,10 @@ export default function OrderDetail({ order }: { order: Order }) {
   const { phone } = useSession();
   const cart = useCart();
   const router = useRouter();
+  const toast = useToast();
+  const { refresh } = useMyOrders();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // đồng hồ để đơn tự "hết hạn" mà không cần tải lại
@@ -124,6 +131,24 @@ export default function OrderDetail({ order }: { order: Order }) {
   }, [vs, order.confirmed_at]);
 
   const back = () => router.push("/orders/");
+
+  async function cancelOrder() {
+    if (!phone || cancelling) return;
+    setCancelling(true);
+    try {
+      await api.cancelOrder(phone, order.id);
+      setConfirmCancel(false);
+      await refresh();
+      toast("Đã huỷ đơn");
+      router.push("/orders/");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Không huỷ được đơn");
+      setConfirmCancel(false);
+      refresh();
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   function reorder() {
     cart.replace(order.items);
@@ -209,6 +234,26 @@ export default function OrderDetail({ order }: { order: Order }) {
           <div className="mt-3"><PushCard onSubscribed={(s) => phone && api.attachPush(phone, order.id, s).catch(() => {})} /></div>
         </>
       )}
+
+      {vs === "pending" && (
+        <button onClick={() => setConfirmCancel(true)} className="mt-4 h-12 w-full rounded-full border-2 border-line font-semibold text-muted">
+          Huỷ đơn này
+        </button>
+      )}
+
+      <Sheet open={confirmCancel} title="Huỷ đơn này?" onClose={() => !cancelling && setConfirmCancel(false)}>
+        <div className="pb-safe">
+          <p className="text-sm text-muted">
+            Đơn sẽ bị xoá{order.voucher_title ? " và ưu đãi được trả lại cho bạn" : ""}. Bạn có thể đặt lại bất cứ lúc nào.
+          </p>
+          <button onClick={cancelOrder} disabled={cancelling} className="btn-primary mt-5 h-12 w-full disabled:opacity-60">
+            {cancelling ? "Đang huỷ…" : "Huỷ đơn"}
+          </button>
+          <button onClick={() => setConfirmCancel(false)} disabled={cancelling} className="mt-2 h-12 w-full rounded-full font-semibold text-bean-dark">
+            Giữ lại
+          </button>
+        </div>
+      </Sheet>
 
       {vs === "done" && (
         <button onClick={reorder} className="mt-4 h-12 w-full rounded-full border-2 border-line font-semibold text-bean-dark">Đặt lại các món này</button>

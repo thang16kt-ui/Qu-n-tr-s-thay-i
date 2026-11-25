@@ -707,3 +707,20 @@ end $$;
 
 grant execute on function public.place_order(text, jsonb, jsonb, uuid), public.staff_scan(text, text, text),
   public.staff_set_status(text, uuid, text) to anon, authenticated;
+
+-- =========================================================
+-- Khách tự huỷ đơn nháp (chưa được quét tại quầy)
+-- Đổi sang 'cancelled' trước để trigger trả lại voucher, rồi xoá hẳn đơn
+-- =========================================================
+create or replace function cancel_order(p_phone text, p_order uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  update orders set status = 'cancelled'
+  where id = p_order and member_phone = p_phone and status = 'pending';
+  if not found then
+    raise exception 'Đơn đã được quầy nhận hoặc không còn tồn tại';
+  end if;
+  delete from orders where id = p_order;
+  return true;
+end $$;
+grant execute on function public.cancel_order(text, uuid) to anon, authenticated;

@@ -26,6 +26,7 @@ export const api = {
     rpc<VoucherOption[]>("preview_vouchers", { p_phone: phone, p_items: items }),
   attachPush: (phone: string, orderId: string, sub: PushSubscriptionJSON) =>
     rpc<boolean>("attach_push", { p_phone: phone, p_order: orderId, p_sub: sub }),
+  cancelOrder: (phone: string, orderId: string) => rpc<boolean>("cancel_order", { p_phone: phone, p_order: orderId }),
   redeem: (phone: string, voucherId: string) => rpc<MemberVoucher>("redeem_voucher", { p_phone: phone, p_voucher: voucherId }),
 };
 
