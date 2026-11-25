@@ -41,9 +41,13 @@ export const staffApi = (pin: string) => ({
   setStatus: (orderId: string, status: string) => rpc<StatusResult>("staff_set_status", { p_pin: pin, p_order: orderId, p_status: status }),
   addPoints: (phone: string, amount: number) => rpc<{ member: Member; points: number }>("staff_add_points", { p_pin: pin, p_phone: phone, p_amount: amount }),
   setAvailable: (id: string, available: boolean) => rpc<MenuItem>("staff_set_available", { p_pin: pin, p_id: id, p_available: available }),
-  confirm: (orderId: string, method: "cash" | "transfer") => rpc<ConfirmResult>("staff_confirm", { p_pin: pin, p_order: orderId, p_method: method }),
+  /** items: món đã sửa ở quầy — chỉ được ghi vào đơn (và app khách đổi theo) lúc xác nhận */
+  confirm: (orderId: string, method: "cash" | "transfer", items?: OrderInput[]) =>
+    rpc<ConfirmResult>("staff_confirm", { p_pin: pin, p_order: orderId, p_method: method, ...(items ? { p_items: items } : {}) }),
   cancel: (orderId: string) => rpc<{ order: Order; points: number }>("staff_cancel", { p_pin: pin, p_order: orderId }),
   createOrder: (phone: string, items: OrderInput[]) => rpc<Order>("staff_create_order", { p_pin: pin, p_phone: phone, p_items: items }),
+  /** Xem trước đơn sau khi thêm/bớt món — CHƯA lưu, app khách chưa đổi */
+  previewOrder: (orderId: string, items: OrderInput[]) => rpc<Order>("staff_preview_order", { p_pin: pin, p_order: orderId, p_items: items }),
   saveMenuItem: (item: Partial<MenuItem>) => rpc<MenuItem>("staff_save_menu_item", { p_pin: pin, p_item: item }),
   deleteMenuItem: (id: string) => rpc<boolean>("staff_delete_menu_item", { p_pin: pin, p_id: id }),
   resetDemo: () => rpc<{ ok: boolean; orders: number; members: number }>("staff_reset_demo", { p_pin: pin }),

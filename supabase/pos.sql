@@ -85,9 +85,10 @@ end $$;
 -- POS: "Xác nhận & thu tiền" — CHỈ MỘT LẦN cho mỗi đơn
 --   pending → confirmed, cấp số đơn, ghi hình thức thanh toán, cộng 1 điểm / 10.000đ (point_log)
 -- =========================================================
-create or replace function public.staff_confirm(p_pin text, p_order uuid, p_method text)
+drop function if exists public.staff_confirm(text, uuid, text);
+create or replace function public.staff_confirm(p_pin text, p_order uuid, p_method text, p_items jsonb default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare o orders; m members; pts int := 0;
+declare o orders; n orders; m members; pts int := 0;
 begin
   perform private.check_pin(p_pin);
   if p_method is null or p_method not in ('cash', 'transfer') then
@@ -99,6 +100,17 @@ begin
   if not found then raise exception 'Không tìm thấy đơn'; end if;
   if o.status = 'cancelled' then raise exception 'Đơn đã bị huỷ hoặc hết hạn'; end if;
   if o.status <> 'pending' then raise exception 'Đơn đã được xác nhận'; end if;
+
+  -- Khách thêm / bớt món ở quầy: ghi món mới vào đơn cùng lúc xác nhận (app khách đổi theo lúc này)
+  if p_items is not null then
+    n := private.reprice(o, p_items);
+    if o.voucher_id is not null and n.voucher_id is null then
+      update member_vouchers set used = false where id = o.voucher_id;
+    end if;
+    update orders set items = n.items, subtotal = n.subtotal, discount = n.discount, total = n.total,
+           voucher_id = n.voucher_id, voucher_title = n.voucher_title
+    where id = p_order;
+  end if;
 
   update orders set
     status = 'confirmed',
@@ -152,6 +164,42 @@ begin
   returning * into o;
   return private.order_json(o);
 end $$;
+
+-- Tính lại món / giá / ưu đãi của một đơn (KHÔNG ghi gì vào database).
+-- Ưu đãi đang gắn vào đơn được tính lại; không còn đủ điều kiện thì bỏ ra (n.voucher_id = null).
+create or replace function private.reprice(o public.orders, p_items jsonb)
+returns public.orders language plpgsql stable security definer set search_path = public as $$
+declare v_priced jsonb; v_sub int; v_disc int := 0; v_v vouchers; dd jsonb; n orders := o;
+begin
+  v_priced := private.price_items(p_items);
+  v_sub := (v_priced->>'subtotal')::int;
+  if o.voucher_id is not null then
+    select v.* into v_v from member_vouchers mv join vouchers v on v.id = mv.voucher_id where mv.id = o.voucher_id;
+    if found then
+      dd := private.voucher_discount(v_v, v_priced->'lines', v_sub);
+      v_disc := coalesce((dd->>'discount')::int, 0);
+    end if;
+    if v_disc <= 0 then n.voucher_id := null; n.voucher_title := null; v_disc := 0; end if;
+  end if;
+  n.items := v_priced->'lines'; n.subtotal := v_sub; n.discount := v_disc; n.total := v_sub - v_disc;
+  return n;
+end $$;
+
+-- POS: xem trước đơn sau khi thêm / bớt món (chưa lưu — app khách chưa đổi gì).
+-- Chỉ khi bấm "Xác nhận" (staff_confirm kèm p_items) món mới mới được ghi vào đơn.
+create or replace function public.staff_preview_order(p_pin text, p_order uuid, p_items jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o orders;
+begin
+  perform private.check_pin(p_pin);
+  perform private.expire_stale();
+  select * into o from orders where id = p_order;
+  if not found then raise exception 'Không tìm thấy đơn'; end if;
+  if o.status = 'cancelled' then raise exception 'Đơn đã bị huỷ hoặc hết hạn'; end if;
+  if o.status <> 'pending' then raise exception 'Đơn đã thu tiền, không sửa món được'; end if;
+  return private.order_json(private.reprice(o, p_items));
+end $$;
+grant execute on function public.staff_preview_order(text, uuid, jsonb) to anon, authenticated;
 
 -- =========================================================
 -- BẾP: confirmed → making → done  (huỷ đi qua staff_cancel, xác nhận đi qua staff_confirm)
@@ -446,7 +494,7 @@ end $$;
 -- Quyền gọi hàm từ trình duyệt (mỗi hàm tự kiểm tra PIN)
 -- =========================================================
 grant execute on function
-  public.staff_scan(text, text, text), public.staff_confirm(text, uuid, text), public.staff_cancel(text, uuid),
+  public.staff_scan(text, text, text), public.staff_confirm(text, uuid, text, jsonb), public.staff_cancel(text, uuid),
   public.staff_create_order(text, text, jsonb), public.staff_set_status(text, uuid, text),
   public.staff_push_target(text, uuid), public.staff_clear_push(text, uuid),
   public.staff_save_menu_item(text, jsonb), public.staff_delete_menu_item(text, text),

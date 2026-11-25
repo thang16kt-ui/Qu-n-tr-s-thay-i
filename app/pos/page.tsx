@@ -74,8 +74,9 @@ function useTodayOrders() {
 type Panel =
   | { kind: "idle" }
   | { kind: "member"; member: Member; pending: Order | null }
-  | { kind: "order"; member: Member; order: Order; notice?: { tone: "warn" | "error"; text: string }; paid?: { points: number } }
+  | { kind: "order"; member: Member; order: Order; notice?: { tone: "warn" | "error" | "info"; text: string }; paid?: { points: number } }
   | { kind: "create"; member: Member }
+  | { kind: "edit"; member: Member; order: Order }
   | { kind: "points"; member: Member };
 
 type Flash = { tone: "ok" | "err"; text: string; n: number };
@@ -230,10 +231,11 @@ function Pos() {
     } catch (e) { toast((e as Error).message); }
   }
 
-  async function pay(order: Order, method: "cash" | "transfer") {
+  async function pay(order: Order, method: "cash" | "transfer", edited?: boolean) {
     setBusy(true);
     try {
-      const r = await api.confirm(order.id, method);
+      // Món sửa ở quầy chỉ được ghi vào đơn lúc xác nhận
+      const r = await api.confirm(order.id, method, edited ? order.items.map(toInput) : undefined);
       beep();
       show("ok", `Đã thu ${vnd(r.order.total)} · Số đơn #${r.order.code}`);
       put(r.order);
@@ -318,7 +320,14 @@ function Pos() {
               onPay={(m) => pay(panel.order, m)} onCancel={() => cancel(panel.order)}
               onPrint={() => setPrint({ order: panel.order, n: Date.now() })}
               onNext={() => setPanel({ kind: "idle" })}
-              onCreate={() => setPanel({ kind: "create", member: panel.member })} />
+              onCreate={() => setPanel({ kind: "create", member: panel.member })}
+              onEdit={() => setPanel({ kind: "edit", member: panel.member, order: panel.order })} />
+          )}
+          {panel.kind === "edit" && (
+            <CreateOrder key={panel.order.id} member={panel.member} menu={menu} order={panel.order} busy={busy}
+              onBack={() => setPanel({ kind: "order", member: panel.member, order: panel.order })}
+              onConfirm={(lines, m) => pay({ ...panel.order, items: lines }, m, true)}
+              onCreated={() => {}} />
           )}
           {panel.kind === "create" && (
             <CreateOrder member={panel.member} menu={menu}
@@ -401,9 +410,9 @@ function MemberPanel({ panel, onOpen, onCreate, onPoints, onClose }: {
   );
 }
 
-function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate }: {
+function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, onEdit }: {
   panel: Extract<Panel, { kind: "order" }>; busy: boolean;
-  onPay: (m: "cash" | "transfer") => void; onCancel: () => void; onPrint: () => void; onNext: () => void; onCreate: () => void;
+  onPay: (m: "cash" | "transfer") => void; onCancel: () => void; onPrint: () => void; onNext: () => void; onCreate: () => void; onEdit: () => void;
 }) {
   const { order, member, notice, paid } = panel;
   const vs = viewStatus(order);
@@ -446,8 +455,8 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate }:
       <div className="flex min-h-0 flex-col gap-3">
         <MemberBadge member={member} />
         {notice && (
-          <div className={`rounded-2xl p-4 font-semibold ${notice.tone === "error" ? "bg-caramel text-white" : "bg-mustard/40 text-mustard-ink"}`}>
-            <div className="text-lg font-bold">{notice.tone === "error" ? "Không dùng được mã này" : "Đơn đã được xác nhận"}</div>
+          <div className={`rounded-2xl p-4 font-semibold ${notice.tone === "error" ? "bg-caramel text-white" : notice.tone === "info" ? "bg-accent-soft text-bean-dark" : "bg-mustard/40 text-mustard-ink"}`}>
+            <div className="text-lg font-bold">{notice.tone === "error" ? "Không dùng được mã này" : notice.tone === "info" ? "Đã sửa món (chưa lưu)" : "Đơn đã được xác nhận"}</div>
             <div className="mt-1 text-sm">{notice.text}</div>
           </div>
         )}
@@ -463,6 +472,9 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate }:
         <div className="mt-auto space-y-3">
           {vs === "pending" && (
             <>
+              <button disabled={busy} onClick={onEdit} className="h-14 w-full rounded-2xl border-2 border-bean bg-paper text-lg font-bold text-bean-dark active:scale-[0.98]">
+                ＋ Thêm món cho khách
+              </button>
               <div className="grid grid-cols-2 gap-2">
                 {(["cash", "transfer"] as const).map((m) => (
                   <button key={m} onClick={() => setMethod(m)}
@@ -472,7 +484,7 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate }:
                 ))}
               </div>
               <button disabled={busy} onClick={() => onPay(method)} className="h-20 w-full rounded-3xl bg-done text-xl font-bold text-white shadow-lg active:scale-[0.98] disabled:opacity-60">
-                Xác nhận & thu tiền
+                Xác nhận
                 <div className="text-sm font-semibold text-white/85">{vnd(order.total)} · +{pointsFor(order.total)} điểm</div>
               </button>
             </>
@@ -504,17 +516,31 @@ const hasOptions = (m: MenuItem) => {
   return !!(o.sizes?.length || o.sugar?.length || o.ice?.length || o.toppings?.length);
 };
 
-function CreateOrder({ member, menu, onBack, onCreated }: {
-  member: Member; menu: MenuItem[]; onBack: () => void; onCreated: (o: Order) => void;
+function CreateOrder({ member, menu, order, busy: payBusy, onBack, onCreated, onConfirm }: {
+  member: Member; menu: MenuItem[]; order?: Order; busy?: boolean; onBack: () => void; onCreated: (o: Order) => void;
+  onConfirm?: (lines: OrderLine[], method: "cash" | "transfer") => void;
 }) {
   const { api } = useStaff();
   const toast = useToast();
   const [cat, setCat] = useState<Category>("Cà phê");
-  const [lines, setLines] = useState<OrderLine[]>([]);
+  const [lines, setLines] = useState<OrderLine[]>(order?.items ?? []);
   const [pick, setPick] = useState<MenuItem | null>(null);
   const [busy, setBusy] = useState(false);
   const list = useMemo(() => menu.filter((m) => m.category === cat), [menu, cat]);
-  const total = lines.reduce((s, l) => s + l.lineTotal, 0);
+  const sum = lines.reduce((s, l) => s + l.lineTotal, 0);
+  const [method, setMethod] = useState<"cash" | "transfer">("cash");
+  // Đơn có ưu đãi: hỏi database tổng sau ưu đãi cho danh sách món hiện tại (chỉ xem trước, chưa lưu)
+  const [exact, setExact] = useState<number | null>(null);
+  const hasVoucher = !!order?.voucher_title;
+  const linesKey = JSON.stringify(lines.map(toInput));
+  useEffect(() => {
+    if (!order || !hasVoucher || !lines.length) { setExact(null); return; }
+    let live = true;
+    api.previewOrder(order.id, lines.map(toInput)).then((o) => live && setExact(o.total)).catch(() => live && setExact(null));
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linesKey]);
+  const total = hasVoucher && exact != null ? exact : sum;
 
   const add = (l: Omit<OrderLine, "lineTotal">) => {
     setLines((prev) => [...prev, { ...l, lineTotal: l.qty * l.unitPrice }]);
@@ -554,7 +580,7 @@ function CreateOrder({ member, menu, onBack, onCreated }: {
         </div>
       </div>
       <div className="card flex min-h-0 flex-col p-4">
-        <div className="text-sm text-muted">Đơn cho •••• {member.phone.slice(-4)}{member.name ? ` · ${member.name}` : ""}</div>
+        <div className="text-sm text-muted">{order ? `Thêm món cho đơn ${order.ref ?? ""} · ` : "Đơn cho "}•••• {member.phone.slice(-4)}{member.name ? ` · ${member.name}` : ""}</div>
         <ul className="mt-2 min-h-0 flex-1 divide-y divide-line overflow-y-auto">
           {lines.map((l, i) => (
             <li key={i} className="py-2">
@@ -574,7 +600,26 @@ function CreateOrder({ member, menu, onBack, onCreated }: {
         <div className="mt-2 flex items-baseline justify-between border-t border-line pt-3">
           <span className="font-bold">Tổng</span><span className="text-3xl font-bold tabular-nums">{vnd(total)}</span>
         </div>
-        <button disabled={!lines.length || busy} onClick={create} className="btn-primary mt-3 h-16 w-full text-lg">Tạo đơn → thanh toán</button>
+        {order && <div className="text-right text-xs text-muted">trước khi thêm: {vnd(order.total)}{hasVoucher ? " · đã gồm ưu đãi" : ""}</div>}
+        {order ? (
+          <>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {(["cash", "transfer"] as const).map((m) => (
+                <button key={m} onClick={() => setMethod(m)}
+                  className={`h-12 rounded-2xl border-2 font-bold ${method === m ? "border-bean bg-bean text-cream" : "border-line bg-paper text-bean-dark"}`}>
+                  {m === "cash" ? "💵 " : "🏦 "}{PAYMENT_LABEL[m]}
+                </button>
+              ))}
+            </div>
+            <button disabled={!lines.length || payBusy} onClick={() => onConfirm?.(lines, method)}
+              className="mt-3 h-16 w-full rounded-3xl bg-done text-lg font-bold text-white shadow-lg active:scale-[0.98] disabled:opacity-60">
+              Xác nhận
+              <div className="text-xs font-semibold text-white/85">{vnd(total)} · +{pointsFor(total)} điểm</div>
+            </button>
+          </>
+        ) : (
+          <button disabled={!lines.length || busy} onClick={create} className="btn-primary mt-3 h-16 w-full text-lg">Tạo đơn → thanh toán</button>
+        )}
       </div>
       <OptionPicker item={pick} onClose={() => setPick(null)} onAdd={add} />
     </div>
