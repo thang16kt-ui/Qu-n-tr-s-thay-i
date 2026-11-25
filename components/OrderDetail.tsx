@@ -151,7 +151,7 @@ export default function OrderDetail({ order }: { order: Order }) {
             {phone && <QRCode value={qrValue} size={224} />}
           </div>
           <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
-            Đưa mã cho nhân viên quét: vừa lên đơn vừa tích điểm.
+            Đưa mã cho nhân viên để đặt món.
           </p>
         </>
       )}
