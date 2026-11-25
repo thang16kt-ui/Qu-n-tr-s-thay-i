@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useSession } from "@/lib/session";
 import { useMyOrders } from "@/lib/my-orders";
 import { useMyVouchers } from "@/lib/vouchers";
-import { ACTIVE, STATUS_LABEL, viewStatus } from "@/lib/orders";
+import { ACTIVE, STATUS_LABEL, orderNo, viewStatus } from "@/lib/orders";
 import { PROMOS } from "@/lib/promos";
 import { asset } from "@/lib/api";
 import MemberCard from "@/components/MemberCard";
@@ -49,8 +49,8 @@ export default function HomePage() {
             <span className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full border-2 border-accent-soft bg-bean" />
           </span>
           <span className="flex-1">
-            <span className="block font-semibold text-bean-dark">Đơn #{activeOrder.code} · {STATUS_LABEL[viewStatus(activeOrder)]}</span>
-            <span className="block text-sm text-bean/70">Chạm để mở mã cho nhân viên quét</span>
+            <span className="block font-semibold text-bean-dark">Đơn {orderNo(activeOrder)} · {STATUS_LABEL[viewStatus(activeOrder)]}</span>
+            <span className="block text-sm text-bean/70">{activeOrder.code ? "Chạm để xem tiến độ" : "Mang mã QR đến quầy để vào hàng chờ"}</span>
           </span>
           <IChevron className="text-caramel" />
         </Link>

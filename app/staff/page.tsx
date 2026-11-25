@@ -5,16 +5,16 @@ import { parseQR } from "@/lib/qr";
 import Link from "next/link";
 import { sb } from "@/lib/supabase";
 import { useMenu } from "@/lib/menu";
-import { ACTIVE, STATUS_LABEL, startOfTodayVN, viewStatus } from "@/lib/orders";
+import { ACTIVE, STATUS_LABEL, orderNo, startOfTodayVN, viewStatus } from "@/lib/orders";
 import { describeSelection } from "@/lib/pricing";
 import { pointsFor, tierInfo } from "@/lib/tiers";
-import { prettyPhone, timeAgo, vnd } from "@/lib/format";
+import { dateTime, prettyPhone, timeAgo, vnd } from "@/lib/format";
 import type { Member, Order, OrderStatus } from "@/lib/types";
 import Logo from "@/components/Logo";
 import Scanner from "@/components/Scanner";
 import { useToast } from "@/components/Toast";
 
-const COLS = "id,code,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at";
+const COLS = "id,code,ref,member_phone,items,subtotal,discount,voucher_title,total,status,created_at,confirmed_at,done_at";
 const PIN_KEY = "moc.staffPin";
 
 function useStaffApi(pin: string) {
@@ -26,11 +26,11 @@ function OrderActions({ order, api, onDone }: { order: Order; api: StaffApi; onD
   const [busy, setBusy] = useState(false);
   const vs = viewStatus(order);
   async function go(status: OrderStatus) {
-    if (status === "cancelled" && !confirm(`Huỷ đơn #${order.code}?`)) return;
+    if (status === "cancelled" && !confirm(`Huỷ đơn ${orderNo(order)}?`)) return;
     setBusy(true);
     try {
       const r = await api.setStatus(order.id, status);
-      let msg = `#${order.code}: ${STATUS_LABEL[status]}`;
+      let msg = status === "confirmed" ? `Đã nhận đơn · cấp số #${r.order.code}` : `${orderNo(r.order)}: ${STATUS_LABEL[status]}`;
       if (r.points) msg += ` · +${r.points} điểm`;
       if (status === "done") msg += r.hadSubscription ? " · đã gửi thông báo" : " · khách không bật thông báo";
       toast(msg);
@@ -42,7 +42,7 @@ function OrderActions({ order, api, onDone }: { order: Order; api: StaffApi; onD
   if (vs === "expired" || vs === "cancelled" || vs === "done") return null;
   return (
     <div className="mt-3 flex gap-2">
-      {vs === "pending" && <button disabled={busy} onClick={() => go("confirmed")} className={`${btn} bg-bean text-cream`}>Xác nhận & tích {pointsFor(order.total)} điểm</button>}
+      {vs === "pending" && <button disabled={busy} onClick={() => go("confirmed")} className={`${btn} bg-bean text-cream`}>Nhận đơn · cấp số & tích {pointsFor(order.total)} điểm</button>}
       {vs === "confirmed" && <button disabled={busy} onClick={() => go("making")} className={`${btn} bg-caramel text-white`}>Bắt đầu pha</button>}
       {vs === "making" && <button disabled={busy} onClick={() => go("done")} className={`${btn} bg-done text-white`}>Đã xong ✓</button>}
       <button disabled={busy} onClick={() => go("cancelled")} className="h-11 rounded-full border-2 border-line px-4 text-sm font-semibold text-danger">Huỷ</button>
@@ -50,16 +50,19 @@ function OrderActions({ order, api, onDone }: { order: Order; api: StaffApi; onD
   );
 }
 
-function OrderCard({ order, api, onDone }: { order: Order; api: StaffApi; onDone?: (o: Order) => void }) {
+function OrderCard({ order, api, onDone, place }: { order: Order; api: StaffApi; onDone?: (o: Order) => void; place?: number }) {
   const vs = viewStatus(order);
   const color = vs === "done" ? "bg-done/15 text-done" : vs === "pending" ? "bg-accent-soft text-caramel" : vs === "expired" || vs === "cancelled" ? "bg-danger-soft text-danger" : "bg-caramel/15 text-caramel";
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between">
-        <div className="text-2xl font-bold text-bean-dark">#{order.code}</div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-bean-dark">{order.code ? `#${order.code}` : `Mã ${order.ref}`}</span>
+          {place !== undefined && <span className="rounded-full bg-mustard px-2 py-0.5 text-xs font-bold text-mustard-ink">Thứ {place}</span>}
+        </div>
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${color}`}>{STATUS_LABEL[vs]}</span>
       </div>
-      <div className="text-xs text-muted">{prettyPhone(order.member_phone)} · {timeAgo(order.created_at)}</div>
+      <div className="text-xs text-muted">{prettyPhone(order.member_phone)} · {order.confirmed_at ? `quét lúc ${dateTime(order.confirmed_at)}` : `đặt ${timeAgo(order.created_at)} · chưa vào hàng chờ`}</div>
       <ul className="mt-2 space-y-1 text-sm">
         {order.items.map((l, i) => (
           <li key={i}><b>{l.qty}×</b> {l.name}{describeSelection(l) && <span className="text-muted"> — {describeSelection(l)}</span>}{l.note && <i className="text-caramel"> “{l.note}”</i>}</li>
@@ -123,7 +126,7 @@ function ScanTab({ api }: { api: StaffApi }) {
           {res.orderCode && !res.order && <p className="rounded-2xl bg-danger-soft p-3 text-sm text-danger">Không tìm thấy đơn #{res.orderCode}.</p>}
           {res.order && <OrderCard order={res.order} api={api} onDone={async (o) => {
             setRes({ ...res, order: o });
-            api.scan(res.member.phone, o.code).then(setRes).catch(() => {});
+            api.scan(res.member.phone, o.code ?? o.ref ?? null).then(setRes).catch(() => {});
           }} />}
           {(!res.order || !ACTIVE.includes(res.order.status)) && (
             <div className="card p-4">
@@ -147,31 +150,38 @@ function BoardTab({ api }: { api: StaffApi }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [, tick] = useState(0);
   useEffect(() => {
-    sb().from("orders").select(COLS).gte("created_at", startOfTodayVN()).order("created_at", { ascending: false }).limit(100)
+    // Chỉ đơn ĐÃ QUÉT tại quầy (có giờ nhận đơn) — đơn đặt trên app chưa đến quầy không hiện ở đây
+    sb().from("orders").select(COLS).gte("confirmed_at", startOfTodayVN()).order("confirmed_at", { ascending: true }).limit(150)
       .then(({ data }) => setOrders((data ?? []) as Order[]));
     const ch = sb().channel("staff-orders")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (p) => {
         const o = p.new as Order;
         if (!o?.id) return;
-        setOrders((prev) => [o, ...prev.filter((x) => x.id !== o.id)].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+        setOrders((prev) => [...prev.filter((x) => x.id !== o.id), o]);
       }).subscribe();
     const t = setInterval(() => tick((n) => n + 1), 30_000);
     return () => { sb().removeChannel(ch); clearInterval(t); };
   }, []);
   const groups = useMemo(() => {
-    const g: Record<string, Order[]> = { pending: [], confirmed: [], making: [], done: [] };
-    for (const o of orders) { const vs = viewStatus(o); if (g[vs]) g[vs].push(o); }
-    g.done = g.done.slice(0, 8);
-    return g;
+    const scanned = orders.filter((o) => o.confirmed_at);
+    const byScan = (a: Order, b: Order) => a.confirmed_at!.localeCompare(b.confirmed_at!);
+    return {
+      confirmed: scanned.filter((o) => o.status === "confirmed").sort(byScan),
+      making: scanned.filter((o) => o.status === "making").sort(byScan),
+      done: scanned.filter((o) => o.status === "done").sort((a, b) => (b.done_at ?? "").localeCompare(a.done_at ?? "")).slice(0, 8),
+    };
   }, [orders]);
-  const cols: [string, string][] = [["pending", "Chờ xác nhận"], ["confirmed", "Đã xác nhận"], ["making", "Đang pha"], ["done", "Đã xong (gần đây)"]];
+  const cols: ["confirmed" | "making" | "done", string][] = [["confirmed", "Hàng chờ · ai quét trước làm trước"], ["making", "Đang pha"], ["done", "Đã xong (gần đây)"]];
   return (
     <div className="space-y-6">
+      <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm text-bean-dark">
+        Đơn đặt trên app chỉ hiện ở đây sau khi khách đến quầy và bạn quét mã. Số thứ tự cấp theo giờ quét.
+      </p>
       {cols.map(([k, label]) => (
         <section key={k}>
           <h3 className="mb-2 font-bold text-bean-dark">{label} <span className="text-muted">({groups[k].length})</span></h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {groups[k].map((o) => <OrderCard key={o.id} order={o} api={api} />)}
+            {groups[k].map((o, i) => <OrderCard key={o.id} order={o} api={api} place={k === "confirmed" ? i + 1 : undefined} />)}
             {groups[k].length === 0 && <p className="text-sm text-muted">—</p>}
           </div>
         </section>

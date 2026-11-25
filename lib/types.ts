@@ -53,7 +53,10 @@ export type OrderStatus = "pending" | "confirmed" | "making" | "done" | "cancell
 
 export type Order = {
   id: string;
-  code: string;
+  /** Số thứ tự (A1, A2…) — chỉ có sau khi nhân viên quét mã tại quầy */
+  code: string | null;
+  /** Mã tạm 4 ký tự in trong QR trước khi đến quầy */
+  ref?: string | null;
   member_phone: string;
   items: OrderLine[];
   subtotal?: number | null;

@@ -5,7 +5,7 @@ import { useMyOrders } from "@/lib/my-orders";
 import { PROMOS } from "@/lib/promos";
 import { pointsFor } from "@/lib/tiers";
 import { timeAgo } from "@/lib/format";
-import { viewStatus, ORDER_EXPIRE_MIN } from "@/lib/orders";
+import { viewStatus, orderNo, ORDER_EXPIRE_MIN } from "@/lib/orders";
 import { IBell } from "./Icons";
 import Sheet from "./Sheet";
 
@@ -21,12 +21,12 @@ export default function NotificationBell() {
   const list = useMemo<Noti[]>(() => {
     const out: Noti[] = [];
     for (const o of orders.slice(0, 10)) {
-      if (o.done_at) out.push({ id: o.id + "d", at: o.done_at, title: `Đơn #${o.code} đã xong`, body: "Mời bạn ra quầy nhận món nhé ☕", href: `/orders/?id=${o.id}`, tone: "done" });
-      if (o.confirmed_at) out.push({ id: o.id + "c", at: o.confirmed_at, title: `Đơn #${o.code} đã xác nhận`, body: `+${pointsFor(o.total)} điểm đã được cộng vào tài khoản`, href: `/orders/?id=${o.id}`, tone: "info" });
+      if (o.done_at) out.push({ id: o.id + "d", at: o.done_at, title: `Đơn ${orderNo(o)} đã xong`, body: "Mời bạn ra quầy nhận món nhé ☕", href: `/orders/?id=${o.id}`, tone: "done" });
+      if (o.confirmed_at) out.push({ id: o.id + "c", at: o.confirmed_at, title: `Đã vào hàng chờ · số ${orderNo(o)}`, body: `+${pointsFor(o.total)} điểm đã được cộng vào tài khoản`, href: `/orders/?id=${o.id}`, tone: "info" });
       const vs = viewStatus(o);
       if (vs === "cancelled" || vs === "expired") {
         const at = vs === "expired" ? new Date(new Date(o.created_at).getTime() + ORDER_EXPIRE_MIN * 60000).toISOString() : o.created_at;
-        out.push({ id: o.id + "x", at, title: `Đơn #${o.code} đã hết hạn`, body: "Bạn có thể đặt lại bất cứ lúc nào.", href: "/order", tone: "warn" });
+        out.push({ id: o.id + "x", at, title: `Đơn ${orderNo(o)} đã hết hạn`, body: "Bạn có thể đặt lại bất cứ lúc nào.", href: "/order", tone: "warn" });
       }
     }
     for (const p of PROMOS) out.push({ id: p.id, at: p.date, title: p.title, body: p.body, href: p.href, tone: "promo" });

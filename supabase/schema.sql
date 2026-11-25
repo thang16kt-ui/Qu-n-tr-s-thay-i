@@ -577,3 +577,133 @@ end $$;
 drop trigger if exists orders_done_push on orders;
 create trigger orders_done_push after update of status on orders
 for each row execute function private.on_order_done();
+
+-- =========================================================
+-- HÀNG CHỜ CÔNG BẰNG: ai đến quầy trước làm trước
+--  · Đặt món trên app chỉ tạo đơn "pending" với MÃ TẠM (ref, 4 ký tự) — chưa có số thứ tự,
+--    máy nhân viên KHÔNG thấy đơn này.
+--  · Khi khách đến quầy và nhân viên quét mã → đơn vào hàng chờ, được cấp SỐ THỨ TỰ (A1, A2…)
+--    theo thứ tự quét. Đơn không đến quầy trong 30 phút tự hết hạn (chống đơn ảo).
+-- =========================================================
+alter table orders add column if not exists ref text;
+alter table orders alter column code drop not null;
+update orders set ref = coalesce(ref, code) where ref is null;
+update orders set code = null where status = 'pending';
+create index if not exists orders_ref_idx on orders(member_phone, ref);
+
+create or replace function public.place_order(p_phone text, p_items jsonb, p_sub jsonb default null, p_voucher uuid default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_active text; v_priced jsonb; v_subtotal int; v_disc int := 0; v_title text; v_mv_id uuid;
+  v_mv member_vouchers; v_v vouchers; dd jsonb; v_ref text; v_order orders;
+begin
+  perform private.check_phone(p_phone);
+  if not exists (select 1 from members where phone = p_phone) then
+    raise exception 'Không tìm thấy thành viên, vui lòng đăng nhập lại';
+  end if;
+
+  perform private.expire_stale();
+  perform pg_advisory_xact_lock(hashtext('moc-place-order:' || p_phone));
+
+  -- Mỗi khách chỉ 1 đơn đang chờ (vì chỉ có MỘT mã QR)
+  select coalesce('#' || o.code, 'mã ' || o.ref) into v_active from orders o
+  where o.member_phone = p_phone and o.status in ('pending','confirmed','making') limit 1;
+  if v_active is not null then
+    raise exception 'Bạn đang có đơn % chưa xong. Mang mã QR đến quầy hoặc chờ đơn xong nhé.', v_active;
+  end if;
+
+  v_priced := private.price_items(p_items);
+  v_subtotal := (v_priced->>'subtotal')::int;
+
+  if p_voucher is not null then
+    select * into v_mv from member_vouchers where id = p_voucher and member_phone = p_phone for update;
+    if not found or v_mv.used or v_mv.expires_at <= now() then
+      raise exception 'Ưu đãi này không còn dùng được';
+    end if;
+    select * into v_v from vouchers where id = v_mv.voucher_id;
+    dd := private.voucher_discount(v_v, v_priced->'lines', v_subtotal);
+    v_disc := (dd->>'discount')::int;
+    if v_disc <= 0 then
+      raise exception 'Không áp dụng được ưu đãi: %', coalesce(dd->>'reason', 'không đủ điều kiện');
+    end if;
+    v_title := v_v.title;
+    v_mv_id := v_mv.id;
+    update member_vouchers set used = true where id = v_mv.id;
+  end if;
+
+  -- Mã tạm 4 ký tự (dễ đọc, không có I/O/0/1); số thứ tự chỉ cấp khi quét tại quầy
+  select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', floor(random() * 32)::int + 1, 1), '')
+    into v_ref from generate_series(1, 4);
+
+  insert into orders(code, ref, member_phone, items, subtotal, discount, total, voucher_id, voucher_title, status, push_subscription)
+  values (null, v_ref, p_phone, v_priced->'lines', v_subtotal, v_disc, v_subtotal - v_disc, v_mv_id, v_title, 'pending',
+          case when jsonb_typeof(p_sub) = 'object' and p_sub ? 'endpoint' then p_sub end)
+  returning * into v_order;
+  return private.order_json(v_order);
+end $$;
+
+create or replace function public.staff_scan(p_pin text, p_phone text, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare m members; o orders;
+begin
+  perform private.check_pin(p_pin);
+  perform private.check_phone(p_phone);
+  perform private.expire_stale();
+  insert into members(phone) values (p_phone) on conflict do nothing;
+  select * into m from members where phone = p_phone;
+  if coalesce(p_code, '') <> '' then
+    select * into o from orders
+    where member_phone = p_phone and (ref = p_code or code = p_code)
+    order by created_at desc limit 1;
+  end if;
+  return jsonb_build_object(
+    'member', to_jsonb(m),
+    'order', case when o.id is null then null else private.order_json(o) end,
+    'orderCode', nullif(p_code, ''));
+end $$;
+
+-- Quét mã & nhận đơn → cấp số thứ tự theo giờ quét, cộng điểm; sau đó đang pha → đã xong (push) / huỷ
+create or replace function public.staff_set_status(p_pin text, p_order uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o orders; allowed text[]; pts int := 0; v_count int; v_code text;
+begin
+  perform private.check_pin(p_pin);
+  select * into o from orders where id = p_order for update;
+  if not found then raise exception 'Không tìm thấy đơn'; end if;
+  allowed := case o.status
+    when 'pending'   then array['confirmed','cancelled']
+    when 'confirmed' then array['making','done','cancelled']
+    when 'making'    then array['done','cancelled']
+    else array[]::text[] end;
+  if not (p_status = any(allowed)) then
+    raise exception 'Đơn % đã ở trạng thái "%", không chuyển sang "%" được',
+      coalesce('#' || o.code, 'mã ' || o.ref), o.status, p_status;
+  end if;
+
+  -- Lần đầu nhận đơn tại quầy: cấp số thứ tự tiếp theo trong ngày (giờ VN)
+  if p_status <> 'cancelled' and o.code is null then
+    perform pg_advisory_xact_lock(hashtext('moc-queue-number'));
+    select count(*) into v_count from orders
+    where code is not null
+      and confirmed_at >= (date_trunc('day', now() at time zone 'Asia/Ho_Chi_Minh') at time zone 'Asia/Ho_Chi_Minh');
+    v_code := substr('ABCDEFGH', (v_count / 99) % 8 + 1, 1) || ((v_count % 99) + 1)::text;
+  end if;
+
+  update orders set
+    status = p_status,
+    code = coalesce(code, v_code),
+    confirmed_at = case when p_status <> 'cancelled' then coalesce(confirmed_at, now()) else confirmed_at end,
+    done_at = case when p_status = 'done' then now() else done_at end
+  where id = p_order returning * into o;
+
+  if p_status <> 'cancelled' and not exists (select 1 from point_log where order_id = p_order) then
+    pts := floor(o.total / 10000.0);
+    if pts > 0 then perform add_points(o.member_phone, o.id, pts, 'Đơn #' || o.code); end if;
+  end if;
+
+  return jsonb_build_object('order', private.order_json(o), 'points', pts,
+                            'hadSubscription', o.push_subscription is not null);
+end $$;
+
+grant execute on function public.place_order(text, jsonb, jsonb, uuid), public.staff_scan(text, text, text),
+  public.staff_set_status(text, uuid, text) to anon, authenticated;

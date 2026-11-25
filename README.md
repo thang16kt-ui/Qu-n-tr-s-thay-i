@@ -55,7 +55,8 @@ App có sẵn hướng dẫn này ở tab QR và Cá nhân. Máy không nhận �
 | Tích điểm | 10.000đ = 1 điểm, cộng khi nhân viên xác nhận đơn | `staff_set_status` trong `schema.sql` + `lib/tiers.ts` |
 | Hạng (theo điểm tích luỹ) | Mầm 0 · Chồi 50 · Cây 150 · Cổ thụ 400 | hàm `tier_for` + `lib/tiers.ts` |
 | Đơn hết hạn | 30 phút chưa được quét | `private.expire_stale` + `lib/orders.ts` |
-| Số đơn | A1…A99, B1… đánh lại mỗi ngày (giờ VN) | `place_order` |
+| Số thứ tự | A1…A99, B1… theo giờ quét, đánh lại mỗi ngày (giờ VN) | `staff_set_status` |
+| Hàng chờ công bằng | Đặt món trên app chỉ tạo **mã tạm**; đơn chỉ vào hàng chờ và được cấp **số thứ tự** khi nhân viên quét mã tại quầy — ai đến trước làm trước. Máy nhân viên không thấy đơn chưa quét | `place_order`, `staff_set_status` |
 | Mỗi khách | chỉ 1 đơn đang chờ (vì chỉ có 1 mã QR) | `place_order` |
 | Voucher | loại `percent`, `upsize`, `topping`, `item_amount`, `free_item`, `bogo` (cột `kind`, `value`, `item_ids` của bảng vouchers) | `private.voucher_discount` |
 

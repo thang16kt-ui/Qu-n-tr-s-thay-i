@@ -9,13 +9,15 @@ import { describeSelection } from "@/lib/pricing";
 import { dateTime, vnd } from "@/lib/format";
 import { currentSubscription } from "@/lib/push";
 import { api, asset } from "@/lib/api";
+import { sb } from "@/lib/supabase";
 import type { Order } from "@/lib/types";
 import QRCode from "./QRCode";
 import PushCard from "./PushCard";
 import { IBack, ICheck } from "./Icons";
 
 const STEPS: { key: ViewStatus[]; label: string }[] = [
-  { key: ["pending", "confirmed"], label: "Chờ xác nhận" },
+  { key: ["pending"], label: "Đến quầy" },
+  { key: ["confirmed"], label: "Xếp hàng" },
   { key: ["making"], label: "Đang pha" },
   { key: ["done"], label: "Đã xong" },
 ];
@@ -25,7 +27,7 @@ function Stepper({ status }: { status: ViewStatus }) {
   return (
     <div className="flex items-start">
       {STEPS.map((s, i) => {
-        const done = i < idx || (i === idx && (status === "done" || status === "confirmed"));
+        const done = i < idx || (i === idx && status === "done");
         const cur = i === idx;
         return (
           <div key={s.label} className="flex flex-1 flex-col items-center">
@@ -38,7 +40,7 @@ function Stepper({ status }: { status: ViewStatus }) {
             </div>
             <div className={`mt-1.5 text-center text-xs ${cur ? "font-bold text-bean-dark" : "text-muted"}`}>
               {s.label}
-              {cur && status === "confirmed" && <span className="block font-normal text-caramel">Đã nhận đơn</span>}
+              {cur && status === "pending" && <span className="block font-normal text-caramel">quét mã</span>}
               {cur && status === "making" && <span className="block animate-pulse font-normal text-caramel">đang làm…</span>}
             </div>
           </div>
@@ -110,6 +112,18 @@ export default function OrderDetail({ order }: { order: Order }) {
     return () => { lock?.release().catch(() => {}); };
   }, [active]);
 
+  // Vị trí trong hàng chờ: số đơn đã quét trước mình mà chưa xong
+  const [ahead, setAhead] = useState<number | null>(null);
+  useEffect(() => {
+    if (vs !== "confirmed" || !order.confirmed_at) { setAhead(null); return; }
+    const load = () => sb().from("orders").select("id", { count: "exact", head: true })
+      .in("status", ["confirmed", "making"]).lt("confirmed_at", order.confirmed_at!)
+      .then(({ count }) => setAhead(count ?? 0));
+    load();
+    const t = setInterval(load, 15_000);
+    return () => clearInterval(t);
+  }, [vs, order.confirmed_at]);
+
   const back = () => router.push("/orders/");
 
   function reorder() {
@@ -125,7 +139,7 @@ export default function OrderDetail({ order }: { order: Order }) {
         <div className="animate-pop flex flex-1 flex-col items-center justify-center text-center">
           <div className="animate-ring grid h-24 w-24 place-items-center rounded-full bg-white text-done"><ICheck size={52} /></div>
           <div className="mt-6 text-lg font-semibold text-white/85">Đơn đã xong</div>
-          <div className="text-7xl font-bold tracking-tight">#{order.code}</div>
+          <div className="text-7xl font-bold tracking-tight">#{order.code ?? order.ref}</div>
           <p className="mt-3 text-lg">Mời bạn ra quầy nhận món ☕</p>
           <button onClick={back} className="mt-10 h-12 w-full max-w-xs rounded-full bg-white font-bold text-done">Tôi đã nhận món</button>
         </div>
@@ -133,7 +147,8 @@ export default function OrderDetail({ order }: { order: Order }) {
     );
   }
 
-  const qrValue = phone ? buildQR(phone, order.code) : "";
+  const qrValue = phone ? buildQR(phone, order.ref ?? order.code) : "";
+  const minsLeft = Math.max(0, Math.ceil(ORDER_EXPIRE_MIN - (now - new Date(order.created_at).getTime()) / 60_000));
 
   return (
     <div className="px-5 pt-safe">
@@ -148,23 +163,37 @@ export default function OrderDetail({ order }: { order: Order }) {
         </span>
       </header>
 
-      {active && (
+      {vs === "pending" && (
         <>
-          <div className="mt-5 text-center">
-            <div className="text-6xl font-bold leading-none tracking-tight text-bean-dark">#{order.code}</div>
-          </div>
           <div className="mx-auto mt-5 w-fit rounded-[2rem] bg-white p-4 shadow-[0_20px_40px_-24px_rgba(42,22,14,0.35)]">
             {phone && <QRCode value={qrValue} size={224} />}
           </div>
           <p className="mx-auto mt-3 max-w-xs text-center text-sm font-medium text-bean">
-            Đưa mã cho nhân viên để đặt món.
+            Mang mã này đến quầy để nhân viên quét và nhận đơn.
           </p>
           <div className="card mt-3 p-4"><Stepper status={vs} /></div>
+          <div className="mt-3 rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-bean-dark">
+            Đơn chỉ vào hàng chờ khi bạn đến quầy — <b>ai đến trước làm trước</b>. Số thứ tự được cấp lúc quét mã.
+            <span className="mt-1 block text-xs text-muted">Mã còn hiệu lực {minsLeft} phút.</span>
+          </div>
+        </>
+      )}
+
+      {(vs === "confirmed" || vs === "making") && (
+        <>
+          <div className="mt-6 text-center">
+            <div className="text-sm text-muted">Số thứ tự của bạn</div>
+            <div className="text-7xl font-bold leading-none tracking-tight text-bean-dark">#{order.code}</div>
+            <div className="mt-3 inline-block rounded-full bg-accent-soft px-4 py-1.5 text-sm font-semibold text-caramel">
+              {vs === "making" ? "Đang pha món của bạn" : ahead === null ? "Đang xếp hàng" : ahead === 0 ? "Bạn là đơn tiếp theo" : `Còn ${ahead} đơn trước bạn`}
+            </div>
+          </div>
+          <div className="card mt-5 p-4"><Stepper status={vs} /></div>
         </>
       )}
 
       {!active && (
-        <div className="mt-5 text-center text-5xl font-bold tracking-tight text-bean-dark">#{order.code}</div>
+        <div className="mt-5 text-center text-5xl font-bold tracking-tight text-bean-dark">{order.code ? `#${order.code}` : order.ref}</div>
       )}
 
       {expired && (

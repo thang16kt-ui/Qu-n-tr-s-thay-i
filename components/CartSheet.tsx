@@ -60,7 +60,7 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
       setVoucherId(null);
       await refresh();
       onClose();
-      toast(`Đã đặt đơn #${order.code}`);
+      toast("Đã đặt món — mang mã QR đến quầy nhé");
       router.push("/orders/");
     } catch (e) {
       setError((e as Error).message);
@@ -87,7 +87,7 @@ export default function CartSheet({ open, onClose, menu }: { open: boolean; onCl
           <button onClick={placeOrder} disabled={busy || soldOut.length > 0} className="btn-primary h-14 w-full text-base">
             {busy ? "Đang gửi đơn…" : "Đặt món"}
           </button>
-          <p className="mt-2 text-center text-xs text-muted">Thanh toán tại quầy · Tích {pointsFor(total)} điểm khi nhân viên quét mã</p>
+          <p className="mt-2 text-center text-xs text-muted">Mang mã QR đến quầy để vào hàng chờ · Tích {pointsFor(total)} điểm</p>
         </div>
       )}>
       {cart.lines.length === 0 ? (

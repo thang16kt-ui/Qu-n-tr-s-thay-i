@@ -15,8 +15,8 @@ export function viewStatus(o: Pick<Order, "status" | "created_at">, now = Date.n
 }
 
 export const STATUS_LABEL: Record<ViewStatus, string> = {
-  pending: "Chờ xác nhận",
-  confirmed: "Đã xác nhận",
+  pending: "Chờ đến quầy",
+  confirmed: "Đang xếp hàng",
   making: "Đang pha",
   done: "Đã xong",
   cancelled: "Đã huỷ",
@@ -35,4 +35,9 @@ export function startOfTodayVN(): string {
   const vn = new Date(now.getTime() + 7 * 3600_000);
   vn.setUTCHours(0, 0, 0, 0);
   return new Date(vn.getTime() - 7 * 3600_000).toISOString();
+}
+
+/** Tên ngắn của đơn: số thứ tự nếu đã quét tại quầy, ngược lại là mã tạm */
+export function orderNo(o: Pick<Order, "code" | "ref">): string {
+  return o.code ? `#${o.code}` : `mã ${o.ref ?? "—"}`;
 }
