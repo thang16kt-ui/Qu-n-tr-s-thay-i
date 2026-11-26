@@ -19,7 +19,6 @@ export function useStaff(): Staff {
 
 const PAGES = [
   { key: "pos", href: "/pos", label: "Quầy" },
-  { key: "kitchen", href: "/kitchen", label: "Cn" },
   { key: "admin", href: "/admin", label: "Quản lý" },
 ] as const;
 
@@ -95,7 +94,8 @@ function PinPad({ title, onOk }: { title: string; onOk: (pin: string) => void })
 }
 
 export default function StaffGate({ page, title, right, children }: {
-  page: (typeof PAGES)[number]["key"]; title: string; right?: React.ReactNode; children: React.ReactNode;
+  /** "cn": màn hình Cn mở từ app tích điểm — không hiện thanh Quầy / Quản lý */
+  page: (typeof PAGES)[number]["key"] | "cn"; title: string; right?: React.ReactNode; children: React.ReactNode;
 }) {
   const [pin, setPin] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -125,14 +125,14 @@ export default function StaffGate({ page, title, right, children }: {
             <span className="hidden font-bold text-bean-dark sm:inline">Mộc</span>
             <span className="rounded-full bg-bean px-2.5 py-0.5 text-xs font-bold text-cream">{title}</span>
           </div>
-          <nav className="order-last flex w-full rounded-full bg-cream-2 p-1 lg:order-none lg:w-auto">
+          {page !== "cn" && <nav className="order-last flex w-full rounded-full bg-cream-2 p-1 lg:order-none lg:w-auto">
             {PAGES.map((p) => (
               <Link key={p.key} href={p.href}
                 className={`flex-1 whitespace-nowrap rounded-full px-4 py-1.5 text-center text-sm font-semibold lg:flex-none ${p.key === page ? "bg-bean text-cream" : "text-muted"}`}>
                 {p.label}
               </Link>
             ))}
-          </nav>
+          </nav>}
           <div className="ml-auto flex items-center gap-3 text-sm font-semibold text-bean-dark">
             {right}
             <span className="hidden lg:inline"><Clock /></span>

@@ -105,7 +105,7 @@ export default function MePage() {
           <ILogout size={20} /> Đăng xuất
         </button>
       </div>
-      <Link href="/pos" className="mt-6 block text-center text-xs text-muted underline">Dành cho nhân viên</Link>
+      <Link href="/staff" className="mt-6 block text-center text-xs text-muted underline">Dành cho nhân viên</Link>
       <InstallGuide open={guide} onClose={() => setGuide(false)} />
     </div>
   );

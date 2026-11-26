@@ -1,7 +1,7 @@
 # Hướng dẫn đưa Mộc Coffee lên mạng (Render hoặc Vercel + Supabase)
 
 > **Bản đang chạy (Render):** https://moc-coffee-app.onrender.com
-> · Quầy: `/pos` · Cn: `/kitchen` · Quản lý: `/admin` · PIN nhân viên `1234`
+> · Quầy: `/pos` · Cn: `/staff` (trong app: Tôi → Dành cho nhân viên) · Quản lý: `/admin` · PIN nhân viên `1234`
 > Gói miễn phí của Render “ngủ” sau 15 phút không ai mở; lần mở đầu tiên sau đó mất khoảng 1 phút để thức dậy.
 > Muốn tablet quầy/bếp luôn nhanh: nâng service lên gói **Starter** trên Render, hoặc dùng Vercel (không ngủ).
 
@@ -12,7 +12,7 @@ Kết quả: một đường link dạng `https://moc-coffee.vercel.app` (có s�
 |---|---|---|
 | `/` | App khách: tích điểm, đặt món, mã QR | Điện thoại khách |
 | `/pos` | Quầy thu ngân: quét mã, thu tiền, in tem | Tablet ngang + máy quét 2D |
-| `/kitchen` | Màn hình Cn (nhận đủ món, gọi khách) | Tablet ngang |
+| `/staff` | Màn hình Cn (nhận đủ món, gọi khách) — trong app: **Tôi → Dành cho nhân viên** | Điện thoại hoặc tablet |
 | `/admin` | Quản lý thực đơn, chế độ demo | Tablet hoặc máy tính |
 
 > **Vì sao phải có HTTPS?** Trình duyệt chỉ cho mở **camera** (quét mã) và gửi **thông báo đẩy (Web Push)** trên trang HTTPS.
@@ -34,7 +34,7 @@ Nếu bạn nhận được file **moc-coffee.zip**:
    (Kéo nội dung bên trong, không kéo cả thư mục `moc-coffee`.)
 5. Chờ GitHub tải lên xong, ô *Commit changes* ghi: `Thêm POS, bếp, quản lý` → bấm **Commit changes**.
 
-Kiểm tra: trong kho phải thấy các thư mục `app/pos`, `app/kitchen`, `app/admin` và file `supabase/pos.sql`.
+Kiểm tra: trong kho phải thấy các thư mục `app/pos`, `app/staff`, `app/admin` và file `supabase/pos.sql`.
 
 ---
 
@@ -170,8 +170,8 @@ Dòng nào có **!** đỏ: xem lại biến tương ứng ở Bước 5 rồi R
 - Tablet Android cần cài app/driver của hãng máy in (in qua Wi-Fi/Bluetooth); iPad cần máy in hỗ trợ **AirPrint**.
 - Mỗi ly một tem; món bánh không in tem (trừ khi đơn chỉ có bánh). Có nút **In lại tem dán ly**.
 
-### Màn hình Cn — `/kitchen`
-- Mở `https://<link>/kitchen`, PIN **1234**, **chạm vào màn hình 1 lần** để bật âm báo (trình duyệt bắt buộc).
+### Màn hình Cn — `/staff`
+- Mở app tích điểm → tab **Tôi** → **Dành cho nhân viên** (hoặc mở thẳng `https://<link>/staff`), PIN **1234**, **chạm vào màn hình 1 lần** để bật âm báo (trình duyệt bắt buộc).
 - Nên tắt chế độ tự khoá màn hình của tablet (Cài đặt → Màn hình → Thời gian chờ: Không bao giờ / 30 phút).
 
 ### Kịch bản demo 5 phút
@@ -179,7 +179,7 @@ Dòng nào có **!** đỏ: xem lại biến tương ứng ở Bước 5 rồi R
 2. Bấm **Giả lập khách đặt đơn** → **Mở ở quầy (POS)** (hoặc quét mã QR hiện trên màn hình bằng máy khác).
 3. Ở `/pos`: đối chiếu món, chọn **Tiền mặt/Chuyển khoản** → **Xác nhận & thu tiền** → tem được in, khách được cộng điểm.
 4. Quét lại đúng mã đó → báo đỏ **“Đơn đã được xác nhận”** (không cộng điểm lần 2).
-5. Ở `/kitchen` (Cn): đơn mới hiện ngay + chuông → nhận đủ món thì bấm **Đủ món · Gọi khách** → sau 10 giây (thời gian Hoàn tác) khách nhận thông báo
+5. Ở màn hình Cn (`/staff`): đơn mới hiện ngay + chuông → nhận đủ món thì bấm **Đủ món · Gọi khách** → sau 10 giây (thời gian Hoàn tác) khách nhận thông báo
    *“Đơn #A06 đã xong, mời bạn ra quầy nhận”*.
 6. Ở `/admin` → **Thực đơn**: tắt **Còn hàng** một món → app khách thấy món đó xám lại ngay.
 
@@ -234,5 +234,5 @@ Các tablet đang mở bấm **Khoá** rồi nhập PIN mới.
 
 ## Ghi chú
 - Trang tĩnh cũ `moc-coffee.onrender.com` không còn gửi được thông báo sau Bước 2 (việc gửi đã chuyển sang route `/api/notify`). Dùng link mới `moc-coffee-app.onrender.com`; có thể xoá trang tĩnh cũ.
-- Link cũ `/staff` tự chuyển sang `/pos`.
+- Link cũ `/kitchen` tự chuyển sang màn hình Cn `/staff`.
 - Đây là bản **mô phỏng cho học tập**: PIN 4 số dùng chung, chưa có đăng nhập bằng OTP. Dùng thật cần PIN dài hơn và tài khoản riêng cho từng nhân viên.
