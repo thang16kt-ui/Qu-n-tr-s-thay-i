@@ -33,7 +33,7 @@ export function endedInfo(o: StatusFields, now = Date.now()): { at: string; labe
 export const STATUS_LABEL: Record<ViewStatus, string> = {
   pending: "Chờ đến quầy",
   confirmed: "Đang xếp hàng",
-  making: "Đang pha",
+  making: "Đang xếp hàng",
   done: "Đã xong",
   cancelled: "Đã huỷ",
   expired: "Hết hạn",

@@ -19,10 +19,10 @@ import { IMinus, IPlus, IQR } from "@/components/Icons";
 // Trạng thái đơn (cách gọi của nhân viên)
 // ---------------------------------------------------------------------------
 const STAFF_LABEL: Record<ViewStatus, string> = {
-  pending: "Chờ quầy", confirmed: "Chờ pha", making: "Đang pha", done: "Xong", cancelled: "Đã huỷ", expired: "Hết hạn",
+  pending: "Chờ quầy", confirmed: "Ở Cn", making: "Ở Cn", done: "Đã gọi khách", cancelled: "Đã huỷ", expired: "Hết hạn",
 };
 const STAFF_COLOR: Record<ViewStatus, string> = {
-  pending: "bg-mustard/40 text-mustard-ink", confirmed: "bg-accent-soft text-caramel", making: "bg-caramel text-white",
+  pending: "bg-mustard/40 text-mustard-ink", confirmed: "bg-accent-soft text-caramel", making: "bg-accent-soft text-caramel",
   done: "bg-done/15 text-done", cancelled: "bg-danger-soft text-danger", expired: "bg-danger-soft text-danger",
 };
 function StatusPill({ o, big }: { o: Order; big?: boolean }) {
@@ -258,7 +258,7 @@ function Pos() {
     }
   }, [today, show]);
 
-  // Đơn đang mở cập nhật theo realtime (vd bếp bấm xong)
+  // Đơn đang mở cập nhật theo realtime (vd Cn bấm Gọi khách)
   useEffect(() => {
     setPanel((p) => {
       if (p.kind !== "order") return p;
@@ -538,7 +538,7 @@ function OrderPanel({ panel, busy, onPay, onCancel, onPrint, onNext, onCreate, o
           <div className="animate-pop rounded-2xl bg-done p-4 text-white">
             <div className="text-lg font-bold">✓ Đã thu {vnd(order.total)}</div>
             <div className="mt-1 text-sm text-white/90">
-              {order.payment_method && PAYMENT_LABEL[order.payment_method]}{member ? ` · +${paid.points} điểm` : ""} · đơn #{order.code} đã sang bếp
+              {order.payment_method && PAYMENT_LABEL[order.payment_method]}{member ? ` · +${paid.points} điểm` : ""} · đơn #{order.code} đã chuyển sang Cn
             </div>
           </div>
         )}

@@ -234,7 +234,7 @@ end $$;
 grant execute on function public.staff_preview_order(text, uuid, jsonb) to anon, authenticated;
 
 -- =========================================================
--- BẾP: confirmed → making → done  (huỷ đi qua staff_cancel, xác nhận đi qua staff_confirm)
+-- POS "Gọi khách": confirmed → done  (making chỉ còn cho dữ liệu cũ; huỷ qua staff_cancel, xác nhận qua staff_confirm)
 -- =========================================================
 create or replace function public.staff_set_status(p_pin text, p_order uuid, p_status text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -422,22 +422,22 @@ begin
     perform add_points('0912345678', null, 23, 'Điểm tích luỹ mẫu');
   end if;
 
-  -- Đơn đã xong từ lâu (bếp không hiện nữa)
+  -- Đơn đã gọi khách từ lâu
   perform private.demo_order('0912345678',
     '[{"itemId":"ca-phe-sua-da","qty":2,"size":"M","sugar":"Vừa","ice":"Vừa","toppings":[]}]', 'done', 28, 27, 22);
-  -- Đơn vừa xong (cột "Đã xong" của bếp)
+  -- Đơn vừa gọi khách
   perform private.demo_order('0987654321',
     '[{"itemId":"tra-dao-cam-sa","qty":1,"size":"L","sugar":"Ít đường","ice":"Vừa","toppings":["Thạch đào"]},{"itemId":"croissant-bo","qty":1,"toppings":["Hâm nóng"]}]',
     'done', 12, 11, 3, 'transfer');
-  -- Đang pha
+  -- Chờ đủ món
   perform private.demo_order('0934567890',
     '[{"itemId":"matcha-da-xay","qty":1,"size":"M","sugar":"Vừa","ice":"Vừa","toppings":["Thêm kem tươi"]},{"itemId":"bac-xiu","qty":1,"size":"S","sugar":"Ít đường","ice":"Ít đá","toppings":[],"note":"Mang đi"}]',
-    'making', 9, 8);
-  -- Chờ pha (đã quá 5 phút → bếp hiện màu cam)
+    'confirmed', 9, 8);
+  -- Chờ đủ món
   perform private.demo_order('0978123456',
     '[{"itemId":"cold-brew-cam-sa","qty":2,"size":"M","sugar":"Không đường","ice":"Nhiều đá","toppings":[]}]',
     'confirmed', 8, 7, null, 'transfer', 'counter');
-  -- Chờ pha (mới)
+  -- Chờ đủ món (mới)
   perform private.demo_order('0900000000',
     '[{"itemId":"tra-sua-o-long","qty":1,"size":"L","sugar":"Vừa","ice":"Ít đá","toppings":["Trân châu trắng"],"note":"Ít ngọt hơn"},{"itemId":"latte-nong","qty":1,"size":"M","sugar":"Không đường","toppings":[]}]',
     'confirmed', 3, 2);

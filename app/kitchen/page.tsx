@@ -19,7 +19,7 @@ const mmss = (ms: number) => {
 
 export default function KitchenPage() {
   return (
-    <StaffGate page="kitchen" title="Bếp">
+    <StaffGate page="kitchen" title="Cn">
       <Kitchen />
     </StaffGate>
   );
@@ -33,7 +33,6 @@ function Kitchen() {
   const [fresh, setFresh] = useState<Record<string, true>>({});
   const [undo, setUndo] = useState<Record<string, number>>({}); // id → hạn hoàn tác
   const [sound, setSound] = useState(true);
-  const [busy, setBusy] = useState<Record<string, true>>({});
   const known = useRef<Set<string>>(new Set());
   const pending = useRef<Map<string, { order: Order; timer: number }>>(new Map());
 
@@ -124,12 +123,6 @@ function Kitchen() {
     setUndo((u) => { const n = { ...u }; delete n[id]; return n; });
   }
 
-  async function start(o: Order) {
-    setBusy((b) => ({ ...b, [o.id]: true }));
-    try { upsert((await api.setStatus(o.id, "making")).order); }
-    catch (e) { toast((e as Error).message); }
-    setBusy((b) => { const n = { ...b }; delete n[o.id]; return n; });
-  }
 
   const queue = useMemo(() => orders
     .filter((o) => (o.status === "confirmed" || o.status === "making") && !undo[o.id])
@@ -139,14 +132,12 @@ function Kitchen() {
     .filter((o) => undo[o.id] || (o.status === "done" && o.done_at && now - new Date(o.done_at).getTime() < DONE_SHOW_MS))
     .sort((a, b) => (undo[b.id] ?? new Date(b.done_at ?? 0).getTime()) - (undo[a.id] ?? new Date(a.done_at ?? 0).getTime())), [orders, undo, now]);
 
-  const making = queue.filter((o) => o.status === "making").length;
-
   return (
     <div className="flex flex-col lg:h-full lg:flex-row">
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-3 lg:flex-nowrap lg:gap-4 lg:px-5 lg:pt-4">
-          <h1 className="text-2xl font-bold text-bean-dark">Cần pha</h1>
-          <span className="rounded-full bg-paper px-3 py-1 text-sm font-bold text-bean-dark">{queue.length - making} chờ · {making} đang pha</span>
+          <h1 className="text-2xl font-bold text-bean-dark">Chờ đủ món</h1>
+          <span className="rounded-full bg-paper px-3 py-1 text-sm font-bold text-bean-dark">{queue.length} đơn</span>
           <span className="hidden text-sm text-muted lg:inline">Đơn cũ nhất bên trái</span>
           {!sound && (
             <button onClick={() => { unlockAudio(); bell(); setSound(true); }}
@@ -157,7 +148,6 @@ function Kitchen() {
           {queue.map((o) => {
             const wait = now - new Date(o.confirmed_at ?? o.created_at).getTime();
             const late = wait > LATE_MS;
-            const isMaking = o.status === "making";
             return (
               <article key={o.id}
                 className={`card flex w-full shrink-0 flex-col overflow-hidden lg:h-full lg:w-[300px] ${fresh[o.id] ? "ring-4 ring-mustard" : ""}`}>
@@ -168,8 +158,8 @@ function Kitchen() {
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-bold tabular-nums">{mmss(wait)}</div>
-                    <div className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${isMaking ? "bg-mustard text-mustard-ink" : "bg-white/20"}`}>
-                      {isMaking ? "ĐANG PHA" : late ? "CHỜ LÂU" : "CHỜ PHA"}
+                    <div className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">
+                      {late ? "CHỜ LÂU" : "CHỜ ĐỦ MÓN"}
                     </div>
                   </div>
                 </header>
@@ -177,15 +167,9 @@ function Kitchen() {
                   {o.items.map((l, i) => <li key={i}><LineText line={l} large /></li>)}
                 </ul>
                 <div className="space-y-2 border-t border-line p-3">
-                  {!isMaking && (
-                    <button disabled={busy[o.id]} onClick={() => start(o)}
-                      className="h-14 w-full rounded-2xl border-2 border-bean text-lg font-bold text-bean active:scale-[0.98] disabled:opacity-50">
-                      Bắt đầu pha
-                    </button>
-                  )}
                   <button onClick={() => markDone(o)}
                     className="h-20 w-full rounded-2xl bg-done text-2xl font-bold text-white shadow-lg active:scale-[0.98]">
-                    ✓ Xác nhận xong
+                    ✓ Đủ món · Gọi khách
                   </button>
                 </div>
               </article>
@@ -195,8 +179,8 @@ function Kitchen() {
             <div className="grid flex-1 place-items-center py-10 text-center lg:py-0">
               <div>
                 <div className="text-6xl">☕</div>
-                <div className="mt-4 text-2xl font-bold text-bean-dark">Chưa có đơn cần pha</div>
-                <div className="mt-1 text-muted">Đơn hiện ngay khi quầy bấm “Xác nhận & thu tiền”.</div>
+                <div className="mt-4 text-2xl font-bold text-bean-dark">Chưa có đơn</div>
+                <div className="mt-1 text-muted">Đơn hiện ngay khi thu ngân bấm “Xác nhận”. Nhận đủ món thì bấm “Gọi khách”.</div>
               </div>
             </div>
           )}
@@ -205,7 +189,7 @@ function Kitchen() {
 
       <aside className="flex w-full shrink-0 flex-col border-t border-line bg-paper lg:w-[290px] lg:border-l lg:border-t-0">
         <div className="border-b border-line px-4 py-4">
-          <div className="text-xl font-bold text-done">Đã xong</div>
+          <div className="text-xl font-bold text-done">Đã gọi khách</div>
           <div className="text-xs text-muted">Tự ẩn sau 10 phút</div>
         </div>
         <ul className="space-y-3 p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">

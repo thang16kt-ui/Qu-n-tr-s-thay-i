@@ -1,7 +1,7 @@
 # Hướng dẫn đưa Mộc Coffee lên mạng (Render hoặc Vercel + Supabase)
 
 > **Bản đang chạy (Render):** https://moc-coffee-app.onrender.com
-> · Quầy: `/pos` · Bếp: `/kitchen` · Quản lý: `/admin` · PIN nhân viên `1234`
+> · Quầy: `/pos` · Cn: `/kitchen` · Quản lý: `/admin` · PIN nhân viên `1234`
 > Gói miễn phí của Render “ngủ” sau 15 phút không ai mở; lần mở đầu tiên sau đó mất khoảng 1 phút để thức dậy.
 > Muốn tablet quầy/bếp luôn nhanh: nâng service lên gói **Starter** trên Render, hoặc dùng Vercel (không ngủ).
 
@@ -12,7 +12,7 @@ Kết quả: một đường link dạng `https://moc-coffee.vercel.app` (có s�
 |---|---|---|
 | `/` | App khách: tích điểm, đặt món, mã QR | Điện thoại khách |
 | `/pos` | Quầy thu ngân: quét mã, thu tiền, in tem | Tablet ngang + máy quét 2D |
-| `/kitchen` | Màn hình bếp / pha chế | Tablet ngang |
+| `/kitchen` | Màn hình Cn (nhận đủ món, gọi khách) | Tablet ngang |
 | `/admin` | Quản lý thực đơn, chế độ demo | Tablet hoặc máy tính |
 
 > **Vì sao phải có HTTPS?** Trình duyệt chỉ cho mở **camera** (quét mã) và gửi **thông báo đẩy (Web Push)** trên trang HTTPS.
@@ -170,7 +170,7 @@ Dòng nào có **!** đỏ: xem lại biến tương ứng ở Bước 5 rồi R
 - Tablet Android cần cài app/driver của hãng máy in (in qua Wi-Fi/Bluetooth); iPad cần máy in hỗ trợ **AirPrint**.
 - Mỗi ly một tem; món bánh không in tem (trừ khi đơn chỉ có bánh). Có nút **In lại tem dán ly**.
 
-### Tablet bếp — `/kitchen`
+### Màn hình Cn — `/kitchen`
 - Mở `https://<link>/kitchen`, PIN **1234**, **chạm vào màn hình 1 lần** để bật âm báo (trình duyệt bắt buộc).
 - Nên tắt chế độ tự khoá màn hình của tablet (Cài đặt → Màn hình → Thời gian chờ: Không bao giờ / 30 phút).
 
@@ -179,7 +179,7 @@ Dòng nào có **!** đỏ: xem lại biến tương ứng ở Bước 5 rồi R
 2. Bấm **Giả lập khách đặt đơn** → **Mở ở quầy (POS)** (hoặc quét mã QR hiện trên màn hình bằng máy khác).
 3. Ở `/pos`: đối chiếu món, chọn **Tiền mặt/Chuyển khoản** → **Xác nhận & thu tiền** → tem được in, khách được cộng điểm.
 4. Quét lại đúng mã đó → báo đỏ **“Đơn đã được xác nhận”** (không cộng điểm lần 2).
-5. Ở `/kitchen`: đơn mới hiện ngay + chuông → **Bắt đầu pha** → **Xác nhận xong** → sau 10 giây (thời gian Hoàn tác) khách nhận thông báo
+5. Ở `/kitchen` (Cn): đơn mới hiện ngay + chuông → nhận đủ món thì bấm **Đủ món · Gọi khách** → sau 10 giây (thời gian Hoàn tác) khách nhận thông báo
    *“Đơn #A06 đã xong, mời bạn ra quầy nhận”*.
 6. Ở `/admin` → **Thực đơn**: tắt **Còn hàng** một món → app khách thấy món đó xám lại ngay.
 
@@ -225,9 +225,9 @@ Các tablet đang mở bấm **Khoá** rồi nhập PIN mới.
 | POS báo **“Could not find the function …”** | Chưa chạy `supabase/pos.sql`, hoặc chạy ở project khác với project trong biến môi trường |
 | **Quét bằng camera** không mở được | Phải mở bằng link `https://`; vào cài đặt trang của trình duyệt → cho phép **Camera** |
 | Máy quét gõ chữ nhưng không xử lý | Bật “thêm Enter (CR) sau mã” trong sách hướng dẫn của máy quét; kiểm tra bàn phím đang là **tiếng Anh (US)** |
-| Bếp không kêu | Chạm vào màn hình bếp 1 lần (nút **Chạm để bật âm báo**), bật âm lượng tablet |
+| Màn hình Cn không kêu | Chạm vào màn hình Cn 1 lần (nút **Chạm để bật âm báo**), bật âm lượng tablet |
 | Khách không nhận thông báo | Xem `/admin → Thông báo đẩy` đủ 4 dấu ✓; khách phải bấm **Bật thông báo** trong app (iPhone: phải thêm vào MH chính); đổi khoá VAPID thì khách phải bật lại |
-| Bếp báo “khách chưa bật thông báo” | Bình thường: khách đó chưa bật thông báo, màn QR trong app của khách vẫn tự chuyển xanh + kêu khi đơn xong |
+| Cn báo “khách chưa bật thông báo” | Bình thường: khách đó chưa bật thông báo, màn QR trong app của khách vẫn tự chuyển xanh + kêu khi đơn xong |
 | Vercel build lỗi | Vercel → **Deployments** → bấm bản lỗi → **Building** để xem dòng đỏ; thường do thiếu file khi tải lên GitHub (Bước 1) |
 
 ---

@@ -19,8 +19,8 @@ import { useToast } from "./Toast";
 import { IBack, ICheck } from "./Icons";
 
 const STEPS: { key: ViewStatus[]; label: string }[] = [
-  { key: ["pending", "confirmed"], label: "Chờ xác nhận" },
-  { key: ["making"], label: "Đang pha" },
+  { key: ["pending"], label: "Chờ xác nhận" },
+  { key: ["confirmed", "making"], label: "Đã xác nhận" },
   { key: ["done"], label: "Đã xong" },
 ];
 
@@ -29,7 +29,7 @@ function Stepper({ status }: { status: ViewStatus }) {
   return (
     <div className="flex items-start">
       {STEPS.map((s, i) => {
-        const done = i < idx || (i === idx && (status === "done" || status === "confirmed"));
+        const done = i < idx || (i === idx && status === "done");
         const cur = i === idx;
         return (
           <div key={s.label} className="flex flex-1 flex-col items-center">
@@ -42,8 +42,7 @@ function Stepper({ status }: { status: ViewStatus }) {
             </div>
             <div className={`mt-1.5 text-center text-xs ${cur ? "font-bold text-bean-dark" : "text-muted"}`}>
               {s.label}
-              {cur && status === "confirmed" && <span className="block font-normal text-caramel">Đã nhận đơn</span>}
-              {cur && status === "making" && <span className="block animate-pulse font-normal text-caramel">đang làm…</span>}
+              {cur && (status === "confirmed" || status === "making") && <span className="block animate-pulse font-normal text-caramel">đang chuẩn bị…</span>}
             </div>
           </div>
         );
@@ -211,7 +210,7 @@ export default function OrderDetail({ order }: { order: Order }) {
             <div className="text-sm text-muted">Số thứ tự của bạn</div>
             <div className="text-7xl font-bold leading-none tracking-tight text-bean-dark">#{order.code}</div>
             <div className="mt-3 inline-block rounded-full bg-accent-soft px-4 py-1.5 text-sm font-semibold text-caramel">
-              {vs === "making" ? "Đang pha món của bạn" : ahead === null ? "Đang xếp hàng" : ahead === 0 ? "Bạn là đơn tiếp theo" : `Còn ${ahead} đơn trước bạn`}
+              {ahead === null ? "Đang xếp hàng" : ahead === 0 ? "Bạn là đơn tiếp theo" : `Còn ${ahead} đơn trước bạn`}
             </div>
           </div>
           <div className="card mt-5 p-4"><Stepper status={vs} /></div>

@@ -11,11 +11,11 @@ Giao diện: **Next.js 16** chạy trên **Vercel**. Dữ liệu và logic: **Su
 - **Quầy** `/pos` (tablet ngang): ô quét luôn sẵn sàng cho máy quét 2D USB/Bluetooth, **Quét bằng camera** (BarcodeDetector, dự phòng jsQR), **Nhập SĐT tay**.
   Quét `MOC|SĐT|mã đơn|ký tự kiểm tra` → mở đơn + thẻ thành viên (4 số cuối SĐT, điểm) → **Xác nhận & thu tiền** (tiền mặt/chuyển khoản) → cấp số đơn A01…, cộng điểm, in tem dán ly 50×30mm, đơn sang bếp.
   Mã chỉ có SĐT → **Tạo đơn tại quầy** hoặc **Chỉ tích điểm**. Cột phải: đơn hôm nay + trạng thái.
-- **Bếp** `/kitchen`: thẻ đơn chữ lớn, đơn cũ bên trái, đồng hồ chờ (cam khi > 5 phút), chuông khi có đơn mới, **Bắt đầu pha** → **Xác nhận xong** (Hoàn tác 10 giây) → Web Push cho khách qua `/api/notify`. Cột “Đã xong” tự ẩn sau 10 phút.
+- **Cn** `/kitchen` (người nhận món, gọi khách): thẻ đơn chữ lớn, đơn cũ bên trái, đồng hồ chờ (cam khi > 5 phút), chuông khi thu ngân xác nhận đơn mới, nhận đủ món thì bấm **Đủ món · Gọi khách** (Hoàn tác 10 giây) → Web Push cho khách qua `/api/notify`. Cột “Đã xong” tự ẩn sau 10 phút.
 - **Quản lý** `/admin`: thêm/sửa/xoá món, giá, ảnh, hết hàng (realtime sang app khách); **Giả lập khách đặt đơn**, **Đặt lại dữ liệu mẫu**; kiểm tra khoá VAPID.
 - Cả 3 trang dùng chung **PIN nhân viên** (mặc định `1234`). Link cũ `/staff` tự chuyển sang `/pos`.
 
-**Bản đang chạy:** https://moc-coffee-app.onrender.com · quầy `/pos` · bếp `/kitchen` · quản lý `/admin` (PIN `1234`)
+**Bản đang chạy:** https://moc-coffee-app.onrender.com · quầy `/pos` · Cn `/kitchen` · quản lý `/admin` (PIN `1234`)
 
 👉 **Đưa lên mạng: xem [HUONG-DAN-TRIEN-KHAI.md](HUONG-DAN-TRIEN-KHAI.md)** (Render hoặc Vercel + Supabase, từng bước, cho người không biết lập trình).
 

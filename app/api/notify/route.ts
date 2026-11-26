@@ -1,5 +1,5 @@
 // Gửi Web Push "Đơn #A12 đã xong, mời bạn ra quầy nhận" tới điện thoại khách.
-// Gọi từ màn hình bếp sau khi đơn chuyển "Đã xong". Chạy trên máy chủ Vercel (Node.js),
+// Gọi từ màn hình Cn khi bấm "Đủ món · Gọi khách" (đơn chuyển "Đã xong"). Chạy trên máy chủ Vercel (Node.js),
 // dùng khoá VAPID trong biến môi trường — khoá bí mật không bao giờ tới trình duyệt.
 import { createECDH } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";

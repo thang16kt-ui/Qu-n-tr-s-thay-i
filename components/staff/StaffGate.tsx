@@ -19,7 +19,7 @@ export function useStaff(): Staff {
 
 const PAGES = [
   { key: "pos", href: "/pos", label: "Quầy" },
-  { key: "kitchen", href: "/kitchen", label: "Bếp" },
+  { key: "kitchen", href: "/kitchen", label: "Cn" },
   { key: "admin", href: "/admin", label: "Quản lý" },
 ] as const;
 

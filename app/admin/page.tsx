@@ -371,7 +371,7 @@ function PushAdmin() {
     <div className="mx-auto max-w-3xl space-y-5">
       <section className="card p-4 lg:p-6">
         <h2 className="text-xl font-bold text-bean-dark">Kiểm tra thông báo “Đơn đã xong”</h2>
-        <p className="mt-1 text-sm text-muted">Khi bếp bấm “Xác nhận xong”, route <code>/api/notify</code> gửi Web Push tới điện thoại khách (khách phải bật thông báo trong app).</p>
+        <p className="mt-1 text-sm text-muted">Khi Cn bấm “Đủ món · Gọi khách”, route <code>/api/notify</code> gửi Web Push tới điện thoại khách (khách phải bật thông báo trong app).</p>
         {err && <p className="mt-3 rounded-2xl bg-danger-soft p-3 text-sm text-danger">{err}</p>}
         <ul className="mt-4 divide-y divide-line">
           {rows.map(([ok, t, d]) => (
